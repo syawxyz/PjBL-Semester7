@@ -9,6 +9,7 @@ Hardware forklift
 ![hardware forklift](images/IMG_3208.jpeg)
 
 Stakker forklift
+\n
 ![stakker forklift](images/IMG_4042.png)
 
 ## NAV2
