@@ -6,6 +6,6 @@ Terdapat forklift elektrik (pallet stacker) yang telah dikerjakan pada semester 
 
 ### Dokumentasi
 
-![harware forklift](images/IMG_3208.png)
+![hardware forklift](images/IMG_3208.png)
 
-![harware forklift](images/IMG_4042.png)
+![stakker forklift](images/IMG_4042.png)
