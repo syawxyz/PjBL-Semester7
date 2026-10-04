@@ -416,6 +416,25 @@ Panjang jalur: √5 + √5 = 2,24 + 2,24 = 4,48 m. Dibanding A* (6 m), Theta* le
 
 Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan mikrokontroler STM32F401CCU6.
 
+### Arsitektur Sistem
+
+```mermaid
+flowchart LR
+    ENC["Encoder incremental"] -->|"ENC_A (PA8), ENC_B (PA9)"| MCU["STM32F401 Black Pill"]
+    LSU["Limit switch atas"] -->|"LS_UP (PB15)"| MCU
+    LSD["Limit switch bawah"] -->|"LS_DOWN (PB14)"| MCU
+    MCU <-->|"UART TX (PA2) / RX (PA3)"| MAIN["Sistem utama"]
+    PSU["Catu daya 24V"] --> DCDC["DC-DC 5V"]
+    DCDC --> MCU
+    DCDC --> ENC
+```
+
+- Encoder incremental = Menghasilkan pulsa kanal A dan B saat fork bergerak, untuk menghitung posisi dan arah gerak fork
+- Limit switch (2 buah) = Penanda batas atas dan batas bawah fork, juga sebagai titik acuan saat homing
+- STM32F401 Black Pill = Menghitung posisi encoder, mengubahnya menjadi ketinggian (cm), dan membaca kondisi limit switch
+- UART = Jalur komunikasi dua arah ke sistem utama: data ketinggian dikirim ke sistem utama, perintah dari sistem utama diterima STM32, dengan checksum
+- Sistem utama = Menerima data ketinggian fork dan mengirim perintah ke modul sensor fork
+
 ### Skematik
 
 - Catu daya = Input 24V (konektor XT30), diturunkan ke 5V dengan modul DC-DC (U2)
