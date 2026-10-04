@@ -6,12 +6,14 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 ## Daftar Isi
 
 - [Hasil Diskusi Proyek](#hasil-diskusi-proyek-dengan-pt-integrasi-bisnis-eksekutif)
+- [Logbook Minggu 1](#logbook-minggu-1)
 - [SLAM](#slam)
 - [Nav2](#nav2)
 - [RViz](#rviz)
 - [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2)
 - [Algoritma A*](#algoritma-a)
 - [Algoritma Theta*](#algoritma-theta)
+- [Modul Sensor Ketinggian Fork](#modul-sensor-ketinggian-fork)
 - [Rencana Selanjutnya](#rencana-selanjutnya)
 - [Referensi](#referensi)
 
@@ -55,6 +57,21 @@ Kondisi tersebut membatasi penerapan forklift untuk proses *material handling* y
     </td>
   </tr>
 </table>
+
+---
+
+## Logbook Minggu 1
+
+Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
+
+- Sen, 28/09 = Diskusi masalah dengan mitra di industri (2 jam); menyusun Project Charter (6 jam)
+- Sel, 29/09 = Mempelajari Nav2 (4 jam); mempelajari RViz (3 jam)
+- Rab, 30/09 = Membuat arsitektur sistem hardware pembaca ketinggian fork (4 jam); membuat skematik PCB (3 jam)
+- Kam, 01/10 = Routing PCB (4 jam); mempersiapkan firmware pembaca ketinggian fork (3 jam)
+- Jum, 02/10 = Mempelajari SLAM (4 jam); mempelajari algoritma A* dan Theta* (3 jam)
+- Total = 36 jam
+
+Kegiatan Minggu 2 (Min, 04/10): simulasi Nav2, pembuatan peta dengan slam_toolbox di simulasi, dan latihan A* serta Theta*.
 
 ---
 
@@ -395,8 +412,50 @@ Panjang jalur: √5 + √5 = 2,24 + 2,24 = 4,48 m. Dibanding A* (6 m), Theta* le
 
 ---
 
+## Modul Sensor Ketinggian Fork
+
+Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan mikrokontroler STM32F401CCU6.
+
+### Skematik
+
+- Catu daya = Input 24V (konektor XT30), diturunkan ke 5V dengan modul DC-DC (U2)
+- Mikrokontroler = STM32F401CCU6 (U1)
+- Encoder = ENC_A (A8) dan ENC_B (A9) melalui konektor J5
+- Limit switch = LS_DOWN (B14) dan LS_UP (B15), masing-masing dengan pull-up 10k, resistor 1k, dioda 1N4148, dan kapasitor 100nF
+- Komunikasi = UART TX (A2) dan RX (A3) melalui konektor J4
+- Reset = Tombol SW1 dan jalur RST_ALL (A1) melalui konektor J6
+- Indikator = LED D1 pada jalur 3V3
+
+![Skematik modul sensor fork](images/fork-skematik.png)
+
+### PCB
+
+- Software = KiCad 9.0.5
+- Layer = 2 layer (F.Cu dan B.Cu)
+- Status = Masih ada 2 koneksi yang belum di-routing
+
+![Layout PCB modul sensor fork](images/fork-pcb-layout.png)
+
+![Render 3D PCB modul sensor fork](images/fork-pcb-3d.png)
+
+### Firmware
+
+- IDE = STM32CubeIDE, project `encoder_forklift`
+- File utama = `Core/Src/handler.c`
+- Konversi = `EncoderToHeight()`: ketinggian = encoder × `HEIGHT_MAX_CM` / `ENCODER_MAX`, nilai encoder dibatasi 0 sampai `ENCODER_MAX`
+- Konstanta di kode = `ENCODER_MAX` = 53808, `HEIGHT_MAX_CM` = 250 cm
+- Komunikasi = UART (`huart_encoder_fork`) dengan checksum (`calc_checksum`)
+- Fungsi lain = `Encoder_Update`, `encoderForkInit`, `encoderForkReceive`, `encoderForkRoutine`
+
+![Firmware handler.c di STM32CubeIDE](images/fork-firmware-handler.png)
+
+---
+
 ## Rencana Selanjutnya
 
+- [ ] Pembuatan PCB fork dan tes firmware
+- [ ] Integrasi firmware MCU fork ke sistem utama dengan komunikasi CAN
+- [ ] Membuat arsitektur sistem
 - [x] Uji coba Nav2 pada simulasi TurtleBot3 (Gazebo)
 - [ ] Identifikasi format pesan CAN dari STM32 (encoder, perintah motor, hidrolik)
 - [ ] Membuat node bridge CAN ↔ ROS 2 (SocketCAN)
