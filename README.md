@@ -418,16 +418,7 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 ### Arsitektur Sistem
 
-```mermaid
-flowchart LR
-    ENC["Encoder incremental"] -->|"ENC_A (PA8), ENC_B (PA9)"| MCU["STM32F401 Black Pill"]
-    LSU["Limit switch atas"] -->|"LS_UP (PB15)"| MCU
-    LSD["Limit switch bawah"] -->|"LS_DOWN (PB14)"| MCU
-    MCU <-->|"UART TX (PA2) / RX (PA3)"| MAIN["Sistem utama"]
-    PSU["Catu daya 24V"] --> DCDC["DC-DC 5V"]
-    DCDC --> MCU
-    DCDC --> ENC
-```
+![Arsitektur sistem modul sensor ketinggian fork](images/fork-arsitektur.png)
 
 - Encoder incremental = Menghasilkan pulsa kanal A dan B saat fork bergerak, untuk menghitung posisi dan arah gerak fork
 - Limit switch (2 buah) = Penanda batas atas dan batas bawah fork, juga sebagai titik acuan saat homing
@@ -438,11 +429,11 @@ flowchart LR
 ### Skematik
 
 - Catu daya = Input 24V (konektor XT30), diturunkan ke 5V dengan modul DC-DC (U2)
-- Mikrokontroler = STM32F401CCU6 (U1)
-- Encoder = ENC_A (A8) dan ENC_B (A9) melalui konektor J5
-- Limit switch = LS_DOWN (B14) dan LS_UP (B15), masing-masing dengan pull-up 10k, resistor 1k, dioda 1N4148, dan kapasitor 100nF
-- Komunikasi = UART TX (A2) dan RX (A3) melalui konektor J4
-- Reset = Tombol SW1 dan jalur RST_ALL (A1) melalui konektor J6
+- Mikrokontroler = STM32F401CCU6 Black Pill (U1)
+- Encoder = ENC_A (PA8) dan ENC_B (PA9) melalui konektor J5, dengan catu 5V
+- Limit switch = LS_DOWN (PB14) dan LS_UP (PB15), masing-masing dengan pull-up 10k, resistor 1k, dioda 1N4148, dan kapasitor 100nF
+- Komunikasi = UART TX (PA2) dan RX (PA3) melalui konektor J4
+- Reset = Tombol SW1 ke pin NRST STM32; jalur RST_ALL (PA1) keluar melalui konektor J6
 - Indikator = LED D1 pada jalur 3V3
 
 ![Skematik modul sensor fork](images/fork-skematik.png)
@@ -473,7 +464,7 @@ flowchart LR
 ## Rencana Selanjutnya
 
 - [ ] Pembuatan PCB fork dan tes firmware
-- [ ] Integrasi firmware MCU fork ke sistem utama dengan komunikasi CAN
+- [ ] Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
 - [ ] Membuat arsitektur sistem
 - [x] Uji coba Nav2 pada simulasi TurtleBot3 (Gazebo)
 - [ ] Identifikasi format pesan CAN dari STM32 (encoder, perintah motor, hidrolik)
