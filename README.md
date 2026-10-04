@@ -459,23 +459,6 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 ![Firmware handler.c di STM32CubeIDE](images/fork-firmware-handler.png)
 
----
-
-## Rencana Selanjutnya
-
-- [ ] Pembuatan PCB fork dan tes firmware
-- [ ] Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
-- [ ] Membuat arsitektur sistem
-- [x] Uji coba Nav2 pada simulasi TurtleBot3 (Gazebo)
-- [ ] Identifikasi format pesan CAN dari STM32 (encoder, perintah motor, hidrolik)
-- [ ] Membuat node bridge CAN ↔ ROS 2 (SocketCAN)
-- [ ] Membuat URDF forklift beserta TF `base_link → laser` dan `base_link → imu_link`
-- [ ] Fusi odometri encoder dan IMU menggunakan `robot_localization`
-- [ ] Mapping area kerja menggunakan slam_toolbox
-- [ ] Konfigurasi dan uji Nav2 pada forklift
-- [ ] Pemilihan sensor ketinggian fork dan perancangan kendali posisi fork
-
----
 
 ## Referensi
 
