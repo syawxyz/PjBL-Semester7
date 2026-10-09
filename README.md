@@ -10,7 +10,6 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 - [SLAM](#slam)
 - [Nav2](#nav2)
 - [RViz](#rviz)
-- [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2)
 - [Algoritma A*](#algoritma-a)
 - [Algoritma Theta*](#algoritma-theta)
 - [Modul Sensor Ketinggian Fork](#modul-sensor-ketinggian-fork)
@@ -71,8 +70,6 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 - Jum, 02/10 = Mempelajari SLAM (4 jam); mempelajari algoritma A* dan Theta* (3 jam)
 - Total = 36 jam
 
-Kegiatan Minggu 2 (Min, 04/10): simulasi Nav2, pembuatan peta dengan slam_toolbox di simulasi, dan latihan A* serta Theta*.
-
 ---
 
 ## SLAM
@@ -102,15 +99,6 @@ Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yan
 - AMCL = Menggunakan peta yang dihasilkan SLAM dan masukan sensor untuk mengetahui posisi robot
 
 Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta tersebut.
-
-**Kenapa Localization *inactive* di mode SLAM, tapi robot tetap bisa bernavigasi?**
-Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasnya adalah slam_toolbox. slam_toolbox menerbitkan peta (`/map`) dan TF `map → odom`, sehingga Nav2 tetap bisa bernavigasi.
-
-**Isi file peta (`tb3_sim.yaml`)**
-
-- `resolution` = Meter per piksel; `0.05` berarti 1 piksel = 5 cm
-- `origin` = Posisi pojok kiri bawah peta dalam meter (x, y, sudut); pada peta ini `[-2.97, -2.58, 0]`
-- Ukuran peta = Jumlah piksel × resolution; gambar 112 × 103 piksel × 0,05 = 5,6 × 5,15 meter
 
 ### Langkah Pembuatan Peta
 
@@ -150,9 +138,6 @@ Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasn
 - `lifecycle_manager` = Mengelola start/stop seluruh node Nav2
 
 ### Hasil Belajar
-
-**Kenapa Global Status di RViz Error sebelum initial pose diberikan?**
-Karena robot tidak tahu posisi aktualnya di peta. Odometri hanya tahu perpindahan robot dari titik awalnya, bukan posisinya di peta, untuk itu `amcl` membutuhkan pose awal (initial pose). Setelah pose awal diberikan, `amcl` menerbitkan TF `map → odom` sehingga Global Status menjadi Ok.
 
 **Apa beda tugas planner dan controller?**
 
@@ -216,81 +201,6 @@ rviz2 -d config/forklift.rviz
 
 ---
 
-## Uji Coba Simulasi Nav2
-
-Sebelum diterapkan pada forklift, Nav2 diuji terlebih dahulu menggunakan simulasi robot TurtleBot3 Waffle bawaan Nav2 di Gazebo. Uji coba ini bertujuan memahami alur kerja Nav2: lokalisasi dengan AMCL, perencanaan jalur, dan pengiriman goal melalui RViz.
-
-**Lingkungan:** Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11.
-
-> **Catatan:** Quickstart Nav2 versi Rolling memakai paket `nav2_minimal_tb*` dan Gazebo baru (Harmonic). Pada ROS 2 Humble, simulasi memakai paket `turtlebot3_gazebo` dengan Gazebo Classic, sehingga langkahnya sedikit berbeda.
-
-### 1. Instalasi
-
-`$ROS_DISTRO` hanya terisi setelah ROS 2 di-*source*, jadi lakukan `source` terlebih dahulu.
-
-```bash
-source /opt/ros/humble/setup.bash      # pengguna zsh: setup.zsh
-
-sudo apt update
-sudo apt install \
-    ros-$ROS_DISTRO-navigation2 \
-    ros-$ROS_DISTRO-nav2-bringup \
-    ros-$ROS_DISTRO-turtlebot3-gazebo
-```
-
-### 2. Menjalankan Simulasi
-
-```bash
-source /usr/share/gazebo/setup.sh
-export TURTLEBOT3_MODEL=waffle
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models
-
-ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False
-```
-
-Perintah ini membuka Gazebo (dunia simulasi) dan RViz. Pada tahap ini **Global Status di RViz masih Error**, dan terminal menampilkan pesan `Timed out waiting for transform from base_link to map`. Hal ini normal karena AMCL belum menerima posisi awal robot, sehingga transform `map → odom` belum tersedia.
-
-> Jangan menutup jendela RViz. Pada launch ini, menutup RViz akan menghentikan seluruh proses.
-
-![Gazebo dan RViz sebelum initial pose](images/nav2-sim-sebelum-initial-pose.png)
-*Gazebo (kiri) menampilkan TurtleBot3 dengan sinar LiDAR berwarna biru. RViz (kanan) sudah menampilkan peta, tetapi Global Status masih Error karena initial pose belum diberikan.*
-
-### 3. Memberikan Initial Pose
-
-Klik **2D Pose Estimate** pada toolbar RViz, klik posisi robot pada peta, lalu tarik ke arah hadap robot. Cara lain melalui terminal:
-
-```bash
-ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
-  "{header: {frame_id: map}, pose: {pose: {position: {x: -2.0, y: -0.5, z: 0.0}, orientation: {w: 1.0}}}}"
-```
-
-Setelah initial pose diterima, Global Status berubah menjadi **Ok**, dan panel Navigation 2 menunjukkan **Navigation: active** dan **Localization: active**.
-
-![RViz setelah initial pose](images/nav2-sim-setelah-initial-pose.png)
-*RViz setelah initial pose diberikan. Costmap global dan lokal, data LaserScan (titik merah), dan partikel AMCL (panah hijau di sekitar robot) mulai tampil.*
-
-### 4. Mengirim Goal Navigasi
-
-Klik **Nav2 Goal** pada toolbar RViz, klik titik tujuan pada peta, lalu tarik untuk menentukan arah akhir robot. Cara lain melalui terminal:
-
-```bash
-ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
-  "{pose: {header: {frame_id: map}, pose: {position: {x: 1.5, y: 0.5, z: 0.0}, orientation: {w: 1.0}}}}"
-```
-
-Jika berhasil, terminal menampilkan `Goal finished with status: SUCCEEDED`.
-
-![RViz saat robot bernavigasi](images/nav2-sim-navigasi.png)
-*Robot bergerak menuju goal. Panel Navigation 2 menampilkan feedback secara real-time: ETA 7 s, sisa jarak 1,65 m, waktu tempuh 6 s, dan 0 recovery.*
-
-### Hasil Pengamatan
-
-- Sebelum initial pose = Global Status: Error; frame `map` belum tersedia sehingga costmap global menunggu transform
-- Setelah initial pose = Global Status: Ok; Navigation dan Localization *active*; costmap, LaserScan, dan partikel AMCL tampil
-- Saat navigasi = Robot mengikuti jalur hasil planner sambil menghindari halangan; feedback (ETA, sisa jarak, recovery) tampil di panel Navigation 2
-
----
-
 ## Algoritma A*
 
 A* adalah algoritma pencarian jalur terpendek pada grid. Berbeda dengan Dijkstra yang menjelajah ke segala arah secara merata, A* mendahulukan arah yang kelihatannya menuju goal.
@@ -314,66 +224,6 @@ Untuk grid 4 arah (atas, bawah, kiri, kanan), `h` dihitung dengan jarak Manhatta
 
 Setiap langkah, A* mengambil kotak dengan `f` terkecil dari open list, memindahkannya ke closed list, lalu memasukkan tetangga barunya ke open list. Pencarian berhenti saat G diambil dari open list.
 
-### Latihan 1: Menghitung g, h, dan f
-
-```
-        x=0  x=1  x=2  x=3  x=4
-y=0      .    .    .    .    .
-y=1      S    .    #    .    G
-y=2      .    .    #    .    .
-```
-
-Tetangga S (0,1):
-
-- (1,1) = g 1, h 3, f 4
-- (0,0) = g 1, h 5, f 6
-- (0,2) = g 1, h 5, f 6
-
-A* mengembangkan (1,1) lebih dulu karena nilai `f`-nya paling kecil.
-
-Jalur akhir: S → (1,1) → (1,0) → (2,0) → (3,0) → (3,1) atau (4,0) → G = 6 langkah.
-
-Kalau `h` selalu bernilai 0, maka `f = g`, sehingga `g` terkecil yang didahulukan. A* tidak lagi terarah ke goal dan berubah menjadi algoritma Dijkstra.
-
-### Latihan 2: Open List dan Closed List
-
-```
-        x=0  x=1  x=2  x=3
-y=0      S    .    .    .
-y=1      .    #    #    .
-y=2      .    .    .    G
-```
-
-Format: kotak[g, h, f]
-
-```
-Langkah 1: ambil S
-  Open   : (1,0)[1,4,5]  (0,1)[1,4,5]
-  Closed : S
-
-Langkah 2: ambil (1,0)
-  Open   : (0,1)[1,4,5]  (2,0)[2,3,5]
-  Closed : S, (1,0)
-
-Langkah 3: ambil (2,0)
-  Open   : (0,1)[1,4,5]  (3,0)[3,2,5]
-  Closed : S, (1,0), (2,0)
-
-Langkah 4: ambil (3,0)
-  Open   : (0,1)[1,4,5]  (3,1)[4,1,5]
-  Closed : S, (1,0), (2,0), (3,0)
-
-Langkah 5: ambil (3,1)
-  Open   : (0,1)[1,4,5]  G[5,0,5]
-  Closed : S, (1,0), (2,0), (3,0), (3,1)
-
-Langkah 6: ambil G → selesai
-```
-
-Jalur akhir: S → (1,0) → (2,0) → (3,0) → (3,1) → G = 5 langkah.
-
-(0,1) tidak pernah masuk closed list. Di langkah 2, (0,1) kalah seri karena (1,0) lebih dulu masuk open list. Di langkah berikutnya, (0,1) selalu kalah karena `h`-nya lebih besar. Saat G diambil, pencarian langsung berhenti.
-
 ---
 
 ## Algoritma Theta*
@@ -392,18 +242,6 @@ Setiap menemukan tetangga, Theta* mengecek apakah parent dari kotak saat ini bis
 - Tidak terlihat (Path 1) = Sama seperti A*, tetangga dihubungkan ke kotak saat ini
 
 Karena jalurnya bisa miring, biaya dihitung dengan jarak lurus (Euclidean), bukan jumlah langkah.
-
-### Latihan 3: Line-of-Sight
-
-Grid sama dengan Latihan 1 A* (jalur A* = 6 langkah).
-
-- S (0,1) → G (4,1) = Tidak, karena terhalang tembok di (2,1)
-- S (0,1) → (2,0) = Ya, karena garis lurusnya tidak melewati tembok
-- (2,0) → G (4,1) = Ya, karena garis lurusnya tidak melewati tembok; tembok (2,1) ada di bawah garis
-
-Jalur Theta*: S → (2,0) → G
-
-Panjang jalur: √5 + √5 = 2,24 + 2,24 = 4,48 m. Dibanding A* (6 m), Theta* lebih pendek 1,52 m.
 
 ### Kelebihan dan Kekurangan
 
@@ -459,6 +297,14 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 ![Firmware handler.c di STM32CubeIDE](images/fork-firmware-handler.png)
 
+---
+
+## Rencana Selanjutnya
+
+- Pembuatan PCB fork dan test firmware
+- Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
+
+---
 
 ## Referensi
 
