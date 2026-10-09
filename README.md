@@ -248,9 +248,9 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 
 - [ ] Tegangan catu 5V dan 3V3 sesuai, tidak ada hubung singkat
 - [ ] LED indikator menyala dan tombol reset bekerja
-- [ ] Nilai encoder bertambah saat fork naik dan berkurang saat fork turun
+- [x] Nilai encoder bertambah saat fork naik dan berkurang saat fork turun
 - [ ] LS_DOWN dan LS_UP terbaca saat ditekan, tanpa *bouncing*
-- [ ] Data ketinggian terkirim lewat UART dengan checksum yang benar
+- [x] Data ketinggian terkirim lewat UART dengan checksum yang benar
 - [ ] Perintah dari sistem utama diterima modul
 
 ---
@@ -534,19 +534,33 @@ Jika diameter roda pengukur sebenarnya bukan sekitar 35,5 mm, nilai `ENCODER_MAX
 - Laju frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
 - Limit switch = Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
 
-Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Label skematik (PB14 = LS_DOWN, PB15 = LS_UP) perlu disesuaikan, dan pemasangan limit switch harus mengikuti firmware sebelum kalibrasi.
+Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Pemasangan limit switch sudah sesuai firmware; yang perlu disesuaikan adalah label skematik (PB14 = LS_DOWN, PB15 = LS_UP).
 
 ### Format Frame UART
 
 ![Format frame UART 32 byte](images/fork-frame-uart.png)
 
-### Rencana Kalibrasi (Minggu 6–7, SP-03)
+### Hasil Kalibrasi dan Uji
 
-1. Homing fork ke limit switch bawah, lalu catat count = 0.
-2. Naikkan fork ke 6 titik ketinggian, ukur tinggi sebenarnya dengan meteran, catat count encoder.
-3. Ulangi 2 putaran (naik dan turun).
-4. Hitung regresi linear `tinggi = a × count + b`, lalu perbarui konstanta firmware.
-5. Target SP-03: galat < 2 cm pada rentang 0–200 cm.
+Fork sudah dikalibrasi dan diuji dengan meteran, diukur dari lantai ke permukaan atas bilah fork, dengan fork diam di tiap titik.
+
+- Titik 0 cm = Bacaan encoder 0,0 cm, meteran 18,0 cm, residu −0,18 cm
+- Titik 20 cm = Bacaan encoder 7,9 cm, meteran 26,0 cm, residu +0,15 cm
+- Titik 50 cm = Bacaan encoder 38,3 cm, meteran 55,0 cm, residu −0,36 cm
+- Titik 100 cm = Bacaan encoder 88,6 cm, meteran 105,0 cm, residu +0,80 cm
+- Titik 150 cm = Bacaan encoder 139,3 cm, meteran 153,0 cm, residu −0,42 cm
+
+Hasil regresi linear:
+
+```
+tinggi nyata [cm] = 0,971 × bacaan encoder [cm] + 18,2
+residu maks 0,8 cm, simpangan baku 0,45 cm
+```
+
+- Skala 0,971 = Konstanta firmware (`ENCODER_MAX` = 53808 untuk 250 cm) terlalu besar ±3%
+- Offset 18,2 cm = Tinggi permukaan atas bilah saat fork di limit switch bawah (titik nol encoder)
+- Penerapan = Koreksi dilakukan di sisi PC; konstanta firmware tidak diubah
+- Target SP-03 = Galat < 2 cm tercapai pada rentang 0–150 cm; titik 200 cm dan putaran kedua (turun) belum diukur
 
 ---
 
