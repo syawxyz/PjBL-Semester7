@@ -783,6 +783,13 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 
 Jika diameter roda pengukur sebenarnya bukan sekitar 35,5 mm, nilai `ENCODER_MAX` perlu dikoreksi.
 
+### Pemasangan Encoder dan Limit Switch
+
+<p align="center">
+  <img src="images/fork-encoder-limit-switch.jpg" alt="Encoder dan limit switch fork" height="520"><br>
+  <sub>Rotary encoder dengan roda ukur pada tiang fork, serta dua limit switch di atas dan di bawah encoder</sub>
+</p>
+
 ### Rantai Konversi Pulsa ke Ketinggian
 
 ![Rantai konversi pulsa encoder ke ketinggian fork](images/fork-konversi-pulsa.png)
