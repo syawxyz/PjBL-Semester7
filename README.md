@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 1
 
-**Pengembangan Forklift Elektrik (Pallet Stacker) Otonom Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -69,6 +69,12 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 - Kam, 01/10 = Routing PCB (4 jam); mempersiapkan firmware pembaca ketinggian fork (3 jam)
 - Jum, 02/10 = Mempelajari SLAM (4 jam); mempelajari algoritma A* dan Theta* (3 jam)
 - Total = 36 jam
+
+**Target minggu ini:** merancang Project Charter serta mempelajari Nav2, SLAM, algoritma A*, Theta*, dan merancang arsitektur sistem untuk sensor ketinggian fork.
+
+**Kendala:** konstanta variabel untuk perhitungan, seperti skala pembacaan ketinggian fork, belum diketahui.
+
+**Capaian target:** Tercapai.
 
 ---
 
@@ -270,6 +276,8 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 - Mikrokontroler = STM32F401CCU6 Black Pill (U1)
 - Encoder = ENC_A (PA8) dan ENC_B (PA9) melalui konektor J5, dengan catu 5V
 - Limit switch = LS_DOWN (PB14) dan LS_UP (PB15), masing-masing dengan pull-up 10k, resistor 1k, dioda 1N4148, dan kapasitor 100nF
+
+> **Catatan minggu 2:** label limit switch pada skematik ini tertukar terhadap firmware yang berlaku (firmware: PB14 = batas atas, PB15 = batas bawah). Pemasangan mengikuti firmware; label skematik akan disesuaikan. Lihat [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#rantai-konversi-pulsa-ke-ketinggian).
 - Komunikasi = UART TX (PA2) dan RX (PA3) melalui konektor J4
 - Reset = Tombol SW1 ke pin NRST STM32; jalur RST_ALL (PA1) keluar melalui konektor J6
 - Indikator = LED D1 pada jalur 3V3
