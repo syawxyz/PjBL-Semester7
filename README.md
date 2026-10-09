@@ -526,15 +526,15 @@ Jika diameter roda pengukur sebenarnya bukan sekitar 35,5 mm, nilai `ENCODER_MAX
 - Resolusi encoder = 600 PPR × 4 = 2400 count per putaran
 - Filter input TIM1 = 10 (IC1 dan IC2)
 - Counter = 16 bit, diperluas ke int32 lewat `posisi += (int16)(now − last)`
-- Titik nol = Counter di-nol-kan selama `limit_sw[1]` (PB15) bernilai 0
+- Titik nol = Counter di-nol-kan selama limit switch bawah (`limit_sw[1]`, PB15) tertekan
 - Rumus = tinggi [cm] = count × 250 / 53808, count dibatasi 0–53808
 - Resolusi tinggi = 0,00465 cm per count (≈ 0,046 mm)
 - Contoh = 100 cm = 21523 count
 - UART = 115200 bps 8N1, frame 32 byte, header `ibe`, checksum XOR byte 0–30
 - Laju frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
-- Limit switch = Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14, `limit_sw[1]` = PB15
+- Limit switch = Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
 
-Firmware memakai `limit_sw[1]` (PB15) sebagai acuan nol, sedangkan skematik melabeli PB15 sebagai LS_UP. Pemasangan limit switch atas dan bawah perlu dipastikan sebelum kalibrasi.
+Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Label skematik (PB14 = LS_DOWN, PB15 = LS_UP) perlu disesuaikan, dan pemasangan limit switch harus mengikuti firmware sebelum kalibrasi.
 
 ### Format Frame UART
 
