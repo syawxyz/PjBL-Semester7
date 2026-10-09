@@ -258,12 +258,12 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 
 ### Checklist Pengujian Modul
 
-- [ ] Tegangan catu 5V dan 3V3 sesuai, tidak ada hubung singkat
-- [ ] LED indikator menyala dan tombol reset bekerja
+- [x] Tegangan catu 5V dan 3V3 sesuai, tidak ada hubung singkat
+- [x] LED indikator menyala dan tombol reset bekerja
 - [x] Nilai encoder bertambah saat fork naik dan berkurang saat fork turun
-- [ ] Limit switch atas (PB14) dan bawah (PB15) terbaca saat ditekan, tanpa *bouncing*
+- [x] Limit switch atas (PB14) dan bawah (PB15) terbaca saat ditekan, tanpa *bouncing*
 - [x] Data ketinggian terkirim lewat UART dengan checksum yang benar
-- [ ] Perintah dari sistem utama diterima modul
+- [x] Perintah dari sistem utama diterima modul
 
 ---
 
