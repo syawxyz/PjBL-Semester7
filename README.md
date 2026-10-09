@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 2
 
-**Pengembangan Forklift Elektrik (Pallet Stacker) Otonom Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -29,6 +29,18 @@ Periode 04/10/2026 s.d. 09/10/2026, sesuai logbook individu DTEO ITS.
 - Kam, 08/10 = Mempelajari CAN bus dan SocketCAN (4 jam); mempelajari node ROS 2 dan menyusun contoh node jembatan CAN (3 jam)
 - Jum, 09/10 = Mempelajari driver LiDAR dan IMU, TF tree, dan URDF (4 jam); mempelajari rosbag2 dan menghitung skala encoder fork (3 jam)
 - Total = 38 jam
+
+**Target minggu ini:** (1) Project Charter disahkan (M1); (2) PCB encoder fork dirakit, diuji, dan terintegrasi ke sistem utama; (3) memahami simulasi Nav2/SLAM serta dasar CAN–ROS 2 sebagai persiapan perancangan minggu 3.
+
+**Kendala dan solusi:**
+
+1. Skala firmware meleset ±3% (faktor 0,971) dan titik nol encoder berada 18,2 cm di atas lantai. Solusi: koreksi linear di sisi PC (tinggi = 0,971 × bacaan encoder + 18,2 cm); konstanta firmware tetap.
+2. Label limit switch di skematik tertukar terhadap firmware (firmware: PB14 = batas atas, PB15 = batas bawah). Solusi: perbaiki label skematik; pemasangan sudah sesuai firmware.
+3. Minggu 2 difokuskan pada PCB fork sehingga charter belum diajukan untuk pengesahan (M1). Solusi: ajukan charter revisi ke dosen pembimbing di minggu 3.
+
+Catatan: perakitan, pengujian, dan kalibrasi modul fork dikerjakan lebih awal dari jadwal charter (minggu 3–7).
+
+**Capaian target:** Sebagian — target (2) dan (3) tercapai; (1) belum, charter diajukan di minggu 3.
 
 Materi hari Minggu ada di bagian [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2) dan [Latihan A* dan Theta*](#latihan-a-dan-theta).
 
@@ -229,7 +241,7 @@ PCB dirakit pada Sel, 06/10. STM32F401 Black Pill dipasang pada dua baris header
 Komponen pada PCB:
 
 - Header female 2 baris = Dudukan STM32F401 Black Pill
-- Rangkaian limit switch = Resistor, dioda 1N4148, dan kapasitor 100nF untuk LS_DOWN dan LS_UP
+- Rangkaian limit switch = Resistor, dioda 1N4148, dan kapasitor 100nF untuk limit switch atas (PB14) dan bawah (PB15)
 - Konektor JST = Jalur encoder, limit switch, UART, dan RST_ALL
 - Tombol = Reset (SW1)
 - LED hijau = Indikator catu 3V3 (D1)
@@ -249,7 +261,7 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 - [ ] Tegangan catu 5V dan 3V3 sesuai, tidak ada hubung singkat
 - [ ] LED indikator menyala dan tombol reset bekerja
 - [x] Nilai encoder bertambah saat fork naik dan berkurang saat fork turun
-- [ ] LS_DOWN dan LS_UP terbaca saat ditekan, tanpa *bouncing*
+- [ ] Limit switch atas (PB14) dan bawah (PB15) terbaca saat ditekan, tanpa *bouncing*
 - [x] Data ketinggian terkirim lewat UART dengan checksum yang benar
 - [ ] Perintah dari sistem utama diterima modul
 
@@ -510,7 +522,7 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 - Keliling roda yang tersirat = 250 / 22,42 = 11,15 cm
 - Diameter roda yang tersirat = 11,15 / π ≈ 3,55 cm
 
-Jika diameter roda pengukur sebenarnya bukan sekitar 35,5 mm, nilai `ENCODER_MAX` perlu dikoreksi.
+Hasil kalibrasi menunjukkan skala firmware meleset ±3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
 
 ### Pemasangan Encoder dan Limit Switch
 
@@ -566,12 +578,14 @@ residu maks 0,8 cm, simpangan baku 0,45 cm
 
 ## Rencana Selanjutnya
 
-Minggu 3–5 (Perancangan), sesuai Project Charter:
+Minggu 3, sesuai rencana di logbook minggu 2:
 
-- Pengembangan driver CAN–ROS 2 untuk forklift, berdasarkan ID dan format pesan dari firmware STM32 utama
-- Driver LiDAR 2D, IMU, dan encoder motor di ROS 2
+- Pengajuan charter rev. 3 untuk pengesahan (M1)
+- Pengembangan driver CAN–ROS 2, driver LiDAR, IMU, dan encoder motor
 - Perekaman rosbag data sensor navigasi
-- Penyusunan Detailed Engineering Design (DED)
+- Mulai penyusunan Detailed Engineering Design (DED) (minggu 3–5)
+- Kalibrasi fork titik 200 cm dan putaran turun
+- Penyesuaian label limit switch di skematik
 
 ---
 
