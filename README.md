@@ -209,9 +209,9 @@ Arsitektur, skematik, layout PCB, dan firmware modul ada di [branch week1](https
 
 - Status minggu 2 = PCB sudah dirakit, diuji, dan dipasang di forklift
 
-### Hasil Perakitan (Minggu 2)
+### Hasil (Minggu 2)
 
-PCB dirakit pada Sel, 06/10. STM32F401 Black Pill dipasang pada dua baris header female sehingga dapat dilepas untuk pemrograman atau penggantian.
+PCB dirakit pada Sel, 06/10. STM32F401 Black Pill dipasang pada dua baris header female sehingga dapat dilepas.
 
 <table>
   <tr>
@@ -226,7 +226,7 @@ PCB dirakit pada Sel, 06/10. STM32F401 Black Pill dipasang pada dua baris header
   </tr>
 </table>
 
-Komponen yang terlihat pada PCB as-built:
+Komponen pada PCB:
 
 - Header female 2 baris = Dudukan STM32F401 Black Pill
 - Rangkaian limit switch = Resistor, dioda 1N4148, dan kapasitor 100nF untuk LS_DOWN dan LS_UP
