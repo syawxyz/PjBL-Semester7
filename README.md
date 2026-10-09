@@ -783,6 +783,29 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 
 Jika diameter roda pengukur sebenarnya bukan sekitar 35,5 mm, nilai `ENCODER_MAX` perlu dikoreksi.
 
+### Rantai Konversi Pulsa ke Ketinggian
+
+![Rantai konversi pulsa encoder ke ketinggian fork](images/fork-konversi-pulsa.png)
+
+| Besaran | Nilai | Sumber di firmware |
+|---|---|---|
+| Resolusi encoder | 600 PPR × 4 = 2400 count per putaran | TIM1 mode encoder TI12 |
+| Filter input TIM1 | 10 (IC1 dan IC2) | `tim.c` |
+| Counter | 16 bit, diperluas ke int32 lewat `posisi += (int16)(now − last)` | `Encoder_Update()` |
+| Titik nol | Counter di-nol-kan selama `limit_sw[1]` (PB15) bernilai 0 | `encoderForkRoutine()` |
+| Rumus | tinggi [cm] = count × 250 / 53808, count dibatasi 0–53808 | `EncoderToHeight()` |
+| Resolusi tinggi | 0,00465 cm per count (≈ 0,046 mm) | turunan |
+| Contoh | 100 cm = 21523 count | turunan |
+| UART | 115200 bps 8N1, frame 32 byte, header `ibe`, checksum XOR byte 0–30 | `usart.c`, `handler.c` |
+| Laju frame data | ±360 frame/s, dikirim terus-menerus (2,78 ms per frame) | turunan dari baud rate |
+| Limit switch | Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14, `limit_sw[1]` = PB15 | `handler.c` |
+
+Catatan: firmware memakai `limit_sw[1]` (PB15) sebagai acuan nol, sedangkan skematik melabeli PB15 sebagai LS_UP. Pemasangan limit switch atas dan bawah perlu dipastikan sebelum kalibrasi.
+
+### Format Frame UART
+
+![Format frame UART 32 byte](images/fork-frame-uart.png)
+
 ### Rencana Kalibrasi (Minggu 6–7, SP-03)
 
 1. Homing fork ke limit switch bawah, lalu catat count = 0.
