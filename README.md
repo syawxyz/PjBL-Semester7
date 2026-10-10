@@ -7,11 +7,9 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 
 - [Hasil Diskusi Proyek](#hasil-diskusi-proyek-dengan-pt-integrasi-bisnis-eksekutif)
 - [Logbook Minggu 1](#logbook-minggu-1)
-- [SLAM](#slam)
 - [Nav2](#nav2)
 - [RViz](#rviz)
 - [Algoritma A*](#algoritma-a)
-- [Algoritma Theta*](#algoritma-theta)
 - [Modul Sensor Ketinggian Fork](#modul-sensor-ketinggian-fork)
 - [Rencana Selanjutnya](#rencana-selanjutnya)
 - [Referensi](#referensi)
@@ -67,63 +65,14 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 - Sel, 29/09 = Mempelajari Nav2 (4 jam); mempelajari RViz (3 jam)
 - Rab, 30/09 = Membuat arsitektur sistem hardware pembaca ketinggian fork (4 jam); membuat skematik PCB (3 jam)
 - Kam, 01/10 = Routing PCB (4 jam); mempersiapkan firmware pembaca ketinggian fork (3 jam)
-- Jum, 02/10 = Mempelajari SLAM (4 jam); mempelajari algoritma A* dan Theta* (3 jam)
-- Total = 36 jam
+- Jum, 02/10 = Mempelajari algoritma A* (8 jam)
+- Total = 37 jam
 
 **Target minggu ini:** merancang Project Charter serta mempelajari Nav2, SLAM, algoritma A*, Theta*, dan merancang arsitektur sistem untuk sensor ketinggian fork.
 
-**Kendala:** konstanta variabel untuk perhitungan, seperti skala pembacaan ketinggian fork, belum diketahui.
+**Kendala:** belum mempelajari Nav2, SLAM, dan algoritma Theta*.
 
-**Capaian target:** Tercapai.
-
----
-
-## SLAM
-
-**SLAM (*Simultaneous Localization and Mapping*)** adalah proses membangun peta lingkungan sekaligus memperkirakan posisi robot di dalam peta tersebut. Pada proyek ini, SLAM digunakan untuk membuat peta area kerja yang nantinya dipakai Nav2 untuk navigasi.
-
-Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yang direkomendasikan oleh Nav2. Alternatifnya adalah Cartographer.
-
-### Input dan Output
-
-**Input**
-
-- `/scan` (`sensor_msgs/msg/LaserScan`) = Driver LiDAR 2D
-- TF `odom → base_link` = Odometri encoder + IMU (EKF)
-- TF `base_link → laser` = URDF / static transform
-
-**Output** (dari slam_toolbox)
-
-- `/map` (`nav_msgs/msg/OccupancyGrid`) = Peta hasil SLAM
-- TF `map → odom` = Koreksi posisi robot terhadap peta
-
-### Hasil Belajar
-
-**Apa yang dihasilkan SLAM, dan apa bedanya dengan AMCL?**
-
-- SLAM = Membuat peta dari masukan LiDAR dan odometri, sekaligus memperkirakan posisi robot di peta yang sedang dibuat
-- AMCL = Menggunakan peta yang dihasilkan SLAM dan masukan sensor untuk mengetahui posisi robot
-
-Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta tersebut.
-
-### Langkah Pembuatan Peta
-
-1. Jalankan driver LiDAR, node bridge CAN, dan EKF (`robot_localization`).
-2. Jalankan slam_toolbox dalam mode *mapping*:
-   ```bash
-   ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
-   ```
-3. Gerakkan forklift perlahan dengan remote mengelilingi seluruh area kerja.
-4. Simpan peta (menghasilkan `area_kerja.pgm` dan `area_kerja.yaml`):
-   ```bash
-   ros2 run nav2_map_server map_saver_cli -f ~/maps/area_kerja
-   ```
-
-### Catatan
-
-- Gerakkan forklift dengan kecepatan rendah dan kembali ke titik awal agar terjadi *loop closure*.
-- Kualitas peta sangat bergantung pada akurasi odometri, sehingga kalibrasi encoder dan IMU perlu dilakukan terlebih dahulu.
-- Periksa apakah pandangan LiDAR terhalang mast atau fork; jika ya, batasi sudut scan atau gunakan filter laser.
+**Capaian target:** Sebagian.
 
 ---
 
@@ -232,30 +181,6 @@ Setiap langkah, A* mengambil kotak dengan `f` terkecil dari open list, memindahk
 
 ---
 
-## Algoritma Theta*
-
-Theta* adalah pengembangan A* supaya jalurnya tidak harus mengikuti arah grid (*any-angle*).
-
-### Masalah A* di Grid
-
-Pada grid kosong dari (0,0) ke (3,2), A* 4 arah menghasilkan jalur berbentuk tangga sepanjang 5 m. Padahal garis lurusnya hanya √(3² + 2²) ≈ 3,61 m.
-
-### Line-of-Sight
-
-Setiap menemukan tetangga, Theta* mengecek apakah parent dari kotak saat ini bisa melihat langsung tetangga itu, yaitu apakah garis lurus dari tengah kotak ke tengah kotak tidak melewati tembok.
-
-- Terlihat (Path 2) = Tetangga langsung dihubungkan ke parent, kotak di tengah dilewati
-- Tidak terlihat (Path 1) = Sama seperti A*, tetangga dihubungkan ke kotak saat ini
-
-Karena jalurnya bisa miring, biaya dihitung dengan jarak lurus (Euclidean), bukan jumlah langkah.
-
-### Kelebihan dan Kekurangan
-
-- Kelebihan = Jalur lebih pendek dan belokannya lebih sedikit
-- Kekurangan = Perlu hitungan tambahan untuk cek line-of-sight, dan belum memperhitungkan radius belok kendaraan (penting untuk forklift)
-
----
-
 ## Modul Sensor Ketinggian Fork
 
 Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan mikrokontroler STM32F401CCU6.
@@ -310,6 +235,7 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 ## Rencana Selanjutnya
 
 - Pembuatan PCB fork dan test firmware
+- Mempelajari Nav2, SLAM, dan algoritma Theta* (materi SLAM dan Theta* ada di [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2))
 - Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
 
 ---
