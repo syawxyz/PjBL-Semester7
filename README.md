@@ -7,6 +7,8 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 
 - [Logbook Minggu 2](#logbook-minggu-2)
 - [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2)
+- [SLAM](#slam)
+- [Algoritma Theta*](#algoritma-theta)
 - [Latihan A* dan Theta*](#latihan-a-dan-theta)
 - [Modul Sensor Ketinggian Fork](#modul-sensor-ketinggian-fork)
 - [CAN Bus dan SocketCAN](#can-bus-dan-socketcan)
@@ -25,10 +27,10 @@ Periode 04/10/2026 s.d. 09/10/2026, sesuai logbook individu DTEO ITS.
 
 - Min, 04/10 = Simulasi Nav2 TurtleBot3 di Gazebo (4 jam); membuat peta dengan slam_toolbox di simulasi (3 jam); latihan A* dan Theta* (2 jam)
 - Sel, 06/10 = Assembly PCB encoder fork (8 jam)
-- Rab, 07/10 = Testing PCB encoder fork (4 jam); integrasi PCB encoder fork dengan sistem utama (3 jam)
+- Rab, 07/10 = Integrasi PCB encoder fork dengan sistem utama (8 jam)
 - Kam, 08/10 = Mempelajari CAN bus dan SocketCAN (4 jam); mempelajari node ROS 2 dan menyusun contoh node jembatan CAN (3 jam)
 - Jum, 09/10 = Mempelajari driver LiDAR dan IMU, TF tree, dan URDF (4 jam); mempelajari rosbag2 dan menghitung skala encoder fork (3 jam)
-- Total = 38 jam
+- Total = 39 jam
 
 **Target minggu ini:** (1) Project Charter disahkan (M1); (2) PCB encoder fork dirakit, diuji, dan terintegrasi ke sistem utama; (3) memahami simulasi Nav2/SLAM serta dasar CAN–ROS 2 sebagai persiapan perancangan minggu 3.
 
@@ -42,9 +44,9 @@ Catatan: perakitan, pengujian, dan kalibrasi modul fork dikerjakan lebih awal da
 
 **Capaian target:** Sebagian — target (2) dan (3) tercapai; (1) belum, charter diajukan di minggu 3.
 
-Materi hari Minggu ada di bagian [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2) dan [Latihan A* dan Theta*](#latihan-a-dan-theta).
+Materi hari Minggu ada di bagian [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2), [SLAM](#slam), [Algoritma Theta*](#algoritma-theta), dan [Latihan A* dan Theta*](#latihan-a-dan-theta).
 
-Materi minggu 1 (diskusi dengan mitra, konsep SLAM, Nav2, RViz, A*, Theta*, serta arsitektur dan skematik modul fork) ada di [branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1).
+Materi minggu 1 (diskusi dengan mitra, Nav2, RViz, algoritma A*, serta arsitektur dan skematik modul fork) ada di [branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1).
 
 ---
 
@@ -137,9 +139,82 @@ Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasn
 
 ---
 
+## SLAM
+
+**SLAM (*Simultaneous Localization and Mapping*)** adalah proses membangun peta lingkungan sekaligus memperkirakan posisi robot di dalam peta tersebut. Pada proyek ini, SLAM digunakan untuk membuat peta area kerja yang nantinya dipakai Nav2 untuk navigasi.
+
+Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yang direkomendasikan oleh Nav2. Alternatifnya adalah Cartographer.
+
+### Input dan Output
+
+**Input**
+
+- `/scan` (`sensor_msgs/msg/LaserScan`) = Driver LiDAR 2D
+- TF `odom → base_link` = Odometri encoder + IMU (EKF)
+- TF `base_link → laser` = URDF / static transform
+
+**Output** (dari slam_toolbox)
+
+- `/map` (`nav_msgs/msg/OccupancyGrid`) = Peta hasil SLAM
+- TF `map → odom` = Koreksi posisi robot terhadap peta
+
+### Hasil Belajar
+
+**Apa yang dihasilkan SLAM, dan apa bedanya dengan AMCL?**
+
+- SLAM = Membuat peta dari masukan LiDAR dan odometri, sekaligus memperkirakan posisi robot di peta yang sedang dibuat
+- AMCL = Menggunakan peta yang dihasilkan SLAM dan masukan sensor untuk mengetahui posisi robot
+
+Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta tersebut.
+
+### Langkah Pembuatan Peta
+
+1. Jalankan driver LiDAR, node bridge CAN, dan EKF (`robot_localization`).
+2. Jalankan slam_toolbox dalam mode *mapping*:
+   ```bash
+   ros2 launch slam_toolbox online_async_launch.py use_sim_time:=false
+   ```
+3. Gerakkan forklift perlahan dengan remote mengelilingi seluruh area kerja.
+4. Simpan peta (menghasilkan `area_kerja.pgm` dan `area_kerja.yaml`):
+   ```bash
+   ros2 run nav2_map_server map_saver_cli -f ~/maps/area_kerja
+   ```
+
+### Catatan
+
+- Gerakkan forklift dengan kecepatan rendah dan kembali ke titik awal agar terjadi *loop closure*.
+- Kualitas peta sangat bergantung pada akurasi odometri, sehingga kalibrasi encoder dan IMU perlu dilakukan terlebih dahulu.
+- Periksa apakah pandangan LiDAR terhalang mast atau fork; jika ya, batasi sudut scan atau gunakan filter laser.
+
+---
+
+## Algoritma Theta*
+
+Theta* adalah pengembangan A* supaya jalurnya tidak harus mengikuti arah grid (*any-angle*).
+
+### Masalah A* di Grid
+
+Pada grid kosong dari (0,0) ke (3,2), A* 4 arah menghasilkan jalur berbentuk tangga sepanjang 5 m. Padahal garis lurusnya hanya √(3² + 2²) ≈ 3,61 m.
+
+### Line-of-Sight
+
+Setiap menemukan tetangga, Theta* mengecek apakah parent dari kotak saat ini bisa melihat langsung tetangga itu, yaitu apakah garis lurus dari tengah kotak ke tengah kotak tidak melewati tembok.
+
+- Terlihat (Path 2) = Tetangga langsung dihubungkan ke parent, kotak di tengah dilewati
+- Tidak terlihat (Path 1) = Sama seperti A*, tetangga dihubungkan ke kotak saat ini
+
+Karena jalurnya bisa miring, biaya dihitung dengan jarak lurus (Euclidean), bukan jumlah langkah.
+
+### Kelebihan dan Kekurangan
+
+- Kelebihan = Jalur lebih pendek dan belokannya lebih sedikit
+- Kekurangan = Perlu hitungan tambahan untuk cek line-of-sight, dan belum memperhitungkan radius belok kendaraan (penting untuk forklift)
+
+---
+
 ## Latihan A* dan Theta*
 
-Konsep A* (rumus `f = g + h`, open list, closed list) dan Theta* (line-of-sight) ada di [branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1#algoritma-a). Latihan berikut dikerjakan Min, 04/10.
+Konsep A* (rumus `f = g + h`, open list, closed list) ada di [branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1#algoritma-a), sedangkan konsep Theta* (line-of-sight) ada di bagian [Algoritma Theta*](#algoritma-theta). Latihan berikut dikerjakan Min, 04/10.
 
 ### Latihan 1: Menghitung g, h, dan f
 
