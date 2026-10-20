@@ -29,6 +29,24 @@ Periode 12/10/2026 s.d. 16/10/2026 (tahap Perancangan), sesuai logbook individu 
 
 **Target minggu ini:** (1) memahami bridge CAN–ROS 2 serta navigasi FAST-LIO, DLIO, dan Hybrid A*; (2) blok diagram kontrol forklift (kendali ketinggian fork dan kendali gerak) selesai; (3) draf DED bagian 01–03 tersusun.
 
+**Kendala dan solusi:**
+
+1. Format pesan CAN STM32 utama belum diketahui, sehingga decoder `ros2_socketcan` masih memakai ID contoh dan belum diuji di bus forklift. Solusi: identifikasi ID dan format data dengan `candump` di forklift (minggu 4).
+2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: tetap memakai slam_toolbox, AMCL, dan EKF encoder + IMU; LIO dicatat sebagai opsi pengembangan.
+3. Firmware dan wiring STM32 utama belum diperiksa, sehingga kendali kecepatan per roda (PI) dan jalur IMU/encoder motor di diagram masih asumsi desain. Solusi: periksa firmware dan wiring STM32 utama di minggu 4 sebelum menyusun DED bagian 04–06.
+4. Nilai deadband dan luncuran pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6–7.
+
+**Capaian target:** Tercapai — target (1), (2), dan (3) tercapai.
+
+**Progres kumulatif:**
+
+- Minggu 1 = 4,2% (2 dari 3 target)
+- Minggu 2 = 8,3% (2 dari 3 target)
+- Minggu 3 = 14,6% (3 dari 3 target)
+- Rencana linear sampai minggu 3 = 18,75%
+
+Cara hitung: tiap minggu bernilai 100% / 16 = 6,25%, dikali bagian target mingguan yang tercapai. Selisih terhadap rencana terutama karena charter (M1) belum disahkan.
+
 Materi minggu sebelumnya:
 
 - [Branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1) = Diskusi dengan mitra, Nav2, RViz, algoritma A*, arsitektur dan skematik modul fork
