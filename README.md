@@ -32,9 +32,9 @@ Periode 12/10/2026 s.d. 16/10/2026 (tahap Perancangan), sesuai logbook individu 
 **Kendala dan solusi:**
 
 1. Format pesan CAN STM32 utama belum diketahui, sehingga decoder `ros2_socketcan` masih memakai ID contoh. Solusi: peta ID dan format data diambil dari repositori proyek AGV `agv-forklift-ta` (`agv_can.py`, sumber firmware `can_pc.h`/`can_pc.c`); lihat [Peta ID CAN Forklift](#peta-id-can-forklift).
-2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox dan AMCL dengan odometri roda + giro IMU.
+2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox dan AMCL dengan odometry roda + gyro IMU.
 3. Kendali kecepatan per roda semula diasumsikan berupa PI di STM32 utama. Solusi: driver motor MDSM (CiA-402, Profile Velocity Mode) sudah mengatur kecepatan sendiri, sehingga STM32F407 cukup mengirim setpoint kecepatan (rpm) tiap roda; blok diagram kendali gerak dan arsitektur sistem diperbarui.
-4. Nilai deadband dan luncuran pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6–7.
+4. Nilai deadband dan overrun pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6–7.
 
 **Capaian target:** Tercapai — target (1), (2), dan (3) tercapai.
 
@@ -132,7 +132,7 @@ Sumber: `agv-forklift-ta/ibe-agv/stm32_firmware/agv_can.py` (mengikuti firmware 
 **Langsung dari perangkat lain di bus**
 
 - `0x181`, `0x281`, `0x381`, `0x481` = TPDO driver MDSM (node 1): statusword, posisi, torsi, kecepatan roda
-- `0x050` = IMU HWT901B (percepatan, giro, sudut)
+- `0x050` = IMU HWT901B (akselerasi, gyro, sudut)
 
 Di ROS 2, `agv_can_bridge.py` menerbitkan `/odom` dan `/fork_height`, serta menerima `/cmd_vel_agv` dan `/cmd_fork`.
 
@@ -170,7 +170,7 @@ Log CAN berguna untuk mengembangkan decoder di meja kerja tanpa menyalakan forkl
 Node minggu 2 membuka bus CAN sendiri, lalu mengurai frame di node yang sama. Dengan `ros2_socketcan`, akses bus dipisah ke node resmi, sehingga decoder cukup mengolah `can_msgs/msg/Frame`. Decoder juga bisa diuji dengan rosbag yang berisi `/from_can_bus`.
 
 **Apa yang terjadi jika kabel CAN terlepas saat forklift berjalan?**
-Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah `0x01A` dari PC sudah basi, forklift berhenti (target SP-09: ≤ 1 s).
+Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah `0x01A` dari PC timeout, forklift berhenti (target SP-09: ≤ 1 s).
 
 **Kenapa perlu `restart-ms`?**
 Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba memulihkan bus otomatis.
@@ -191,7 +191,7 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### Loosely vs Tightly Coupled
 
-- Loosely coupled = Tiap sensor menghitung hasilnya sendiri, lalu hasilnya digabung. Contoh: EKF `robot_localization`, atau odometri forklift yang menggabungkan posisi roda dengan arah dari giro IMU
+- Loosely coupled = Tiap sensor menghitung hasilnya sendiri, lalu hasilnya digabung. Contoh: EKF `robot_localization`, atau odometry forklift yang menggabungkan posisi roda dengan heading dari gyro IMU
 - Tightly coupled = Data mentah IMU dan titik LiDAR diolah dalam satu estimator. Lebih akurat dan tahan kondisi sulit. FAST-LIO dan DLIO termasuk jenis ini
 
 ### FAST-LIO (HKU MARS Lab)
@@ -210,7 +210,7 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### Relevansi untuk Forklift
 
-FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya memindai satu bidang, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox (pemetaan) dan AMCL (lokalisasi), dengan odometri dari posisi roda + giro IMU.
+FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya memindai satu bidang, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox (mapping) dan AMCL (localization), dengan odometry dari posisi roda + gyro IMU.
 
 ### Hasil Belajar
 
@@ -218,7 +218,7 @@ FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). For
 Titik di awal dan akhir satu putaran scan diambil dari posisi robot yang berbeda. IMU mengukur gerakan selama putaran itu, sehingga setiap titik dikembalikan ke posisi robot pada satu waktu acuan.
 
 **`robot_localization` termasuk loosely atau tightly coupled?**
-Loosely coupled. EKF menggabungkan hasil odometri encoder dan orientasi IMU yang sudah jadi, bukan data mentah LiDAR dan IMU dalam satu estimator.
+Loosely coupled. EKF menggabungkan hasil odometry encoder dan orientasi IMU yang sudah jadi, bukan data mentah LiDAR dan IMU dalam satu estimator.
 
 **Apakah FAST-LIO atau DLIO cocok untuk forklift dengan LiDAR 2D?**
 Tidak. Keduanya butuh awan titik 3D untuk mencocokkan bidang dan mengoreksi enam derajat kebebasan. LiDAR 2D hanya melihat satu irisan horizontal.
@@ -290,10 +290,10 @@ Ada dua loop kendali: **kendali ketinggian fork** di STM32 utama, dan **kendali 
 
 - Referensi r = Target tinggi fork dari ROS 2 (`/cmd_fork`), dikirim lewat CAN `0x02A` ke STM32F407
 - Error e = r − y
-- Kontroler = Logika on/off dengan deadband dan cutoff prediktif di STM32F407
+- Kontroler = Logika on/off dengan deadband dan early cut di STM32F407
 - Sinyal kendali u = NAIK (pompa ON), TURUN (katup solenoid ON), atau DIAM
 - Plant = Silinder hidrolik dan fork
-- Gangguan = Luncuran pompa: fork masih bergerak sebentar setelah pompa dimatikan (risiko R-03)
+- Disturbance = Overrun pompa: fork masih bergerak sebentar setelah pompa dimatikan (risiko R-03)
 - Umpan balik y = Tinggi fork dari encoder inkremental, dihitung modul fork STM32F401, dikirim lewat UART4; STM32F407 meneruskannya ke ROS 2 di frame `0x42A` (`/fork_height`)
 - Interlock = Limit switch atas melarang NAIK, limit switch bawah melarang TURUN dan menjadi titik nol (homing)
 
@@ -302,14 +302,14 @@ Logika kendali (usulan):
 ```
 e = r − y
 jika |e| ≤ deadband                → DIAM
-jika e > deadband                  → NAIK sampai y ≥ r − luncuran_naik
-jika e < −deadband                 → TURUN sampai y ≤ r + luncuran_turun
+jika e > deadband                  → NAIK sampai y ≥ r − overrun_naik
+jika e < −deadband                 → TURUN sampai y ≤ r + overrun_turun
 jika limit switch atas aktif       → larang NAIK
 jika limit switch bawah aktif      → larang TURUN, reset encoder (homing)
 jika aktuator ON tetapi y tidak berubah selama t detik → DIAM + status error
 ```
 
-Nilai deadband, luncuran naik, dan luncuran turun belum diketahui. Nilai ini diidentifikasi dari uji step di minggu 6–7, lalu dibandingkan dengan target SP-04 (galat ≤ 5 cm).
+Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini diidentifikasi dari uji step di minggu 6–7, lalu dibandingkan dengan target SP-04 (error ≤ 5 cm).
 
 ### Kendali Gerak
 
@@ -319,8 +319,8 @@ Nilai deadband, luncuran naik, dan luncuran turun belum diketahui. Nilai ini dii
 - Jembatan = `agv_can_bridge` mengirim `/cmd_vel_agv` sebagai frame CAN `0x01A` (v mm/s, ω mrad/s) 50 Hz ke STM32F407
 - STM32F407 = Kinematika diferensial mengubah (v, ω) menjadi setpoint rpm roda kiri dan kanan, dikirim ke driver lewat CAN (RPDO `0x301`)
 - Loop dalam (driver MDSM) = Driver mengatur kecepatan motor sendiri (CiA-402 Profile Velocity Mode) dengan umpan balik encoder motor
-- Umpan balik = Posisi roda dari TPDO MDSM (`0x281`/`0x481`) dan arah dari giro IMU HWT901B (`0x050`) diolah menjadi `/odom` oleh STM32F407 dan `agv_can_bridge`; LiDAR masuk AMCL/SLAM menjadi pose di peta
-- Keselamatan = Watchdog: perintah PC basi → henti (target SP-09: ≤ 1 s); E-stop fisik memutus catu penggerak tanpa perangkat lunak
+- Feedback = Posisi roda dari TPDO MDSM (`0x281`/`0x481`) dan heading dari gyro IMU HWT901B (`0x050`) diolah menjadi `/odom` oleh STM32F407 dan `agv_can_bridge`; LiDAR masuk AMCL/SLAM menjadi pose di peta
+- Safety = Watchdog: perintah PC timeout → stop (target SP-09: ≤ 1 s); E-stop fisik memutus power motor tanpa software
 
 Kinematika diferensial, dengan L = jarak antar roda dan r = jari-jari roda:
 
@@ -334,7 +334,7 @@ Kinematika diferensial, dengan L = jarak antar roda dan r = jari-jari roda:
 ### Hasil Belajar
 
 **Kenapa kendali fork memakai on/off, bukan PID?**
-Pompa hidrolik hanya bisa ON atau OFF (tidak bisa diatur kecepatannya), dan sistem hidrolik utama tidak boleh dimodifikasi (di luar lingkup). Karena itu kendali dibuat on/off dengan deadband dan cutoff prediktif untuk mengatasi luncuran.
+Pompa hidrolik hanya bisa ON atau OFF (tidak bisa diatur kecepatannya), dan sistem hidrolik utama tidak boleh dimodifikasi (di luar lingkup). Karena itu kendali dibuat on/off dengan deadband dan early cut untuk mengatasi overrun.
 
 **Kenapa kendali gerak dibuat bertingkat?**
 Loop dalam (kecepatan roda) butuh respons cepat dan berjalan di driver MDSM. Loop luar (mengikuti jalur dan menghindari obstacle) butuh peta dan sensor LiDAR, sehingga berjalan di ROS 2. Pemisahan ini juga membuat forklift tetap aman jika PC berhenti, karena watchdog di STM32F407 menghentikan motor.
@@ -348,9 +348,9 @@ Loop dalam (kecepatan roda) butuh respons cepat dan berjalan di driver MDSM. Loo
 Arsitektur disusun berlapis mengikuti template DED:
 
 - Field = LiDAR 2D, encoder fork, 2 limit switch, joystick (ESP32), pompa dan katup fork, E-stop fisik, encoder motor, motor traksi kiri/kanan
-- Control = Bus CAN 250 kbps berisi STM32F407 utama (mode, watchdog, interlock, kendali fork, odometri), driver motor MDSM (CiA-402), dan IMU HWT901B; modul fork STM32F401 terhubung ke STM32F407 lewat UART4; joystick lewat UART
+- Control = Bus CAN 250 kbps berisi STM32F407 utama (mode, watchdog, interlock, kendali fork, odometry), driver motor MDSM (CiA-402), dan IMU HWT901B; modul fork STM32F401 terhubung ke STM32F407 lewat UART4; joystick lewat UART
 - Edge = PC onboard dengan ROS 2 Humble: driver LiDAR, SLAM/AMCL, Nav2, manajemen tugas, klien MQTT, `agv_can_bridge` (adapter USB-CAN)
-- Supervisory = Halaman pemantauan lewat MQTT (Wi-Fi)
+- Supervisory = Halaman monitoring lewat MQTT (Wi-Fi)
 
 Draf DED bagian 01–03 disusun dari template departemen (`PJBL7-K1-DED`, revisi 00, status DRAF):
 
