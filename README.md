@@ -50,13 +50,13 @@ Cara hitung: tiap minggu bernilai 100% / 16 = 6,25%, dikali bagian target minggu
 Materi minggu sebelumnya:
 
 - [Branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1) = Diskusi dengan mitra, Nav2, RViz, algoritma A*, arsitektur dan skematik modul fork
-- [Branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2) = Simulasi Nav2 dan SLAM, Theta*, perakitan dan kalibrasi modul fork, CAN bus dasar dan contoh node jembatan CAN, TF tree dan URDF, rosbag2
+- [Branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2) = Simulasi Nav2 dan SLAM, Theta*, perakitan dan kalibrasi modul fork, CAN bus dasar dan contoh CAN-bridge node, TF tree dan URDF, rosbag2
 
 ---
 
 ## CAN Lanjutan: ros2_socketcan, Error Bus, dan Log CAN
 
-Dasar CAN, SocketCAN, dan contoh node jembatan CAN dengan python-can sudah dibahas di [minggu 2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#can-bus-dan-socketcan). Minggu ini membahas paket resmi `ros2_socketcan`, cara membaca kondisi error bus, dan cara merekam lalu memutar ulang lalu lintas CAN.
+Dasar CAN, SocketCAN, dan contoh CAN-bridge node dengan python-can sudah dibahas di [minggu 2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#can-bus-dan-socketcan). Minggu ini membahas paket resmi `ros2_socketcan`, cara membaca kondisi error bus, dan cara merekam lalu memutar ulang lalu lintas CAN.
 
 ### Paket ros2_socketcan
 
@@ -74,7 +74,7 @@ ros2 launch ros2_socketcan socket_can_bridge.launch.xml interface:=can0
 - Field `can_msgs/msg/Frame` = `header`, `id`, `is_rtr`, `is_extended`, `is_error`, `dlc`, `data` (`uint8[8]`)
 - Parameter penting = `interface` (bawaan `can0`), `filters` (bawaan `0:0`, artinya semua ID diterima), `receiver_interval_sec` dan `sender_timeout_sec` (bawaan 0,01 s)
 
-Dengan paket ini, node jembatan tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic bermakna, misalnya tinggi fork dari frame `0x42A`:
+Dengan paket ini, CAN-bridge node tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic bermakna, misalnya tinggi fork dari frame `0x42A`:
 
 ```python
 import struct
@@ -316,7 +316,7 @@ Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini diide
 ![Blok diagram kendali gerak](images/kendali-gerak.png)
 
 - Loop luar (ROS 2) = Nav2 Planner membuat jalur global, Nav2 Controller menghasilkan `/cmd_vel` (v, ω), `velocity_smoother` membatasi kecepatan ≤ 0,5 m/s
-- Jembatan = `agv_can_bridge` mengirim `/cmd_vel_agv` sebagai frame CAN `0x01A` (v mm/s, ω mrad/s) 50 Hz ke STM32F407
+- CAN-bridge node = `agv_can_bridge` mengirim `/cmd_vel_agv` sebagai frame CAN `0x01A` (v mm/s, ω mrad/s) 50 Hz ke STM32F407
 - STM32F407 = Kinematika diferensial mengubah (v, ω) menjadi setpoint rpm roda kiri dan kanan, dikirim ke driver lewat CAN (RPDO `0x301`)
 - Loop dalam (driver MDSM) = Driver mengatur kecepatan motor sendiri (CiA-402 Profile Velocity Mode) dengan umpan balik encoder motor
 - Feedback = Posisi roda dari TPDO MDSM (`0x281`/`0x481`) dan heading dari gyro IMU HWT901B (`0x050`) diolah menjadi `/odom` oleh STM32F407 dan `agv_can_bridge`; LiDAR masuk AMCL/SLAM menjadi pose di peta
