@@ -12,7 +12,7 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 - [Latihan A* dan Theta*](#latihan-a-dan-theta)
 - [Modul Sensor Ketinggian Fork](#modul-sensor-ketinggian-fork)
 - [CAN Bus dan SocketCAN](#can-bus-dan-socketcan)
-- [Node ROS 2 Jembatan CAN](#node-ros-2-jembatan-can)
+- [CAN-Bridge Node](#can-bridge-node)
 - [Driver LiDAR, IMU, TF Tree, dan URDF](#driver-lidar-imu-tf-tree-dan-urdf)
 - [rosbag2 dan Pengukuran Laju Topic](#rosbag2-dan-pengukuran-laju-topic)
 - [Skala Encoder Fork](#skala-encoder-fork)
@@ -28,7 +28,7 @@ Periode 04/10/2026 s.d. 09/10/2026, sesuai logbook individu DTEO ITS.
 - Min, 04/10 = Simulasi Nav2 TurtleBot3 di Gazebo (4 jam); membuat peta dengan slam_toolbox di simulasi (3 jam); latihan A* dan Theta* (2 jam)
 - Sel, 06/10 = Assembly PCB encoder fork (8 jam)
 - Rab, 07/10 = Integrasi PCB encoder fork dengan sistem utama (8 jam)
-- Kam, 08/10 = Mempelajari CAN bus dan SocketCAN (4 jam); mempelajari node ROS 2 dan menyusun contoh node jembatan CAN (3 jam)
+- Kam, 08/10 = Mempelajari CAN bus dan SocketCAN (4 jam); mempelajari node ROS 2 dan menyusun contoh CAN-bridge node (3 jam)
 - Jum, 09/10 = Mempelajari driver LiDAR dan IMU, TF tree, dan URDF (4 jam); mempelajari rosbag2 dan menghitung skala encoder fork (3 jam)
 - Total = 39 jam
 
@@ -380,12 +380,12 @@ Bit 0 bersifat *dominant* dan menimpa bit 1 (*recessive*) di bus. Saat arbitrasi
 **Kenapa bus CAN butuh resistor 120 Ω di kedua ujung?**
 Resistor terminasi menyamakan impedansi kabel sehingga sinyal tidak memantul di ujung bus. Tanpa terminasi, frame bisa rusak terutama pada bitrate tinggi.
 
-**Apa yang perlu diketahui sebelum membuat jembatan CAN–ROS 2?**
+**Apa yang perlu diketahui sebelum membuat CAN-bridge node?**
 Bitrate bus, daftar ID yang dipakai STM32 utama, serta format data tiap ID (urutan byte, satuan, dan skala). Informasi ini diambil dari firmware STM32 utama dan dicek dengan `candump`.
 
 ---
 
-## Node ROS 2 Jembatan CAN
+## CAN-Bridge Node
 
 Node ini menjadi penghubung antara bus CAN dan ROS 2: frame dari STM32 diubah menjadi topic, dan perintah dari ROS 2 dikirim sebagai frame CAN. Contoh di bawah memakai tinggi fork sebagai kasus.
 
@@ -530,7 +530,7 @@ map
 </robot>
 ```
 
-`robot_state_publisher` membaca URDF ini dan menerbitkan TF untuk semua sendi. Untuk `fork_joint`, nilainya diambil dari topic `/joint_states`, yang dapat diisi oleh node jembatan CAN dari tinggi fork.
+`robot_state_publisher` membaca URDF ini dan menerbitkan TF untuk semua sendi. Untuk `fork_joint`, nilainya diambil dari topic `/joint_states`, yang dapat diisi oleh CAN-bridge node dari tinggi fork.
 
 ### Hasil Belajar
 
