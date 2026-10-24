@@ -36,7 +36,7 @@ Periode 04/10/2026 s.d. 09/10/2026, sesuai logbook individu DTEO ITS.
 
 **Kendala dan solusi:**
 
-1. Skala firmware meleset ±3% (faktor 0,971) dan titik nol encoder berada 18,2 cm di atas lantai. Solusi: koreksi linear di sisi PC (tinggi = 0,971 × bacaan encoder + 18,2 cm); konstanta firmware tetap.
+1. Skala firmware meleset ≈ 3% (faktor 0,971) dan titik nol encoder berada 18,2 cm di atas lantai. Solusi: koreksi linear di sisi PC (tinggi = 0,971 × bacaan encoder + 18,2 cm); konstanta firmware tetap.
 2. Label limit switch di skematik tertukar terhadap firmware (firmware: PB14 = batas atas, PB15 = batas bawah). Solusi: perbaiki label skematik; pemasangan sudah sesuai firmware.
 3. Minggu 2 difokuskan pada PCB fork sehingga charter belum diajukan untuk pengesahan (M1). Solusi: ajukan charter revisi ke dosen pembimbing di minggu 3.
 
@@ -286,7 +286,7 @@ Grid sama dengan Latihan 1 A* (jalur A* = 6 langkah).
 
 Jalur Theta*: S → (2,0) → G
 
-Panjang jalur: √5 + √5 = 2,24 + 2,24 = 4,48 m. Dibanding A* (6 m), Theta* lebih pendek 1,52 m.
+Panjang jalur: √5 + √5 = 2√5 ≈ 4,47 m. Dibanding A* (6 m), Theta* lebih pendek 1,53 m.
 
 ---
 
@@ -357,7 +357,7 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 
 ```bash
 # Antarmuka CAN asli (bitrate harus sama dengan STM32 utama)
-sudo ip link set can0 type can bitrate 500000
+sudo ip link set can0 type can bitrate 250000
 sudo ip link set can0 up
 
 # Antarmuka CAN virtual untuk latihan tanpa hardware
@@ -391,8 +391,8 @@ Node ini menjadi penghubung antara bus CAN dan ROS 2: frame dari STM32 diubah me
 
 > **Catatan:** ID `0x101` dan `0x102` serta format datanya hanya contoh. Nilai sebenarnya mengikuti firmware STM32 utama forklift.
 
-- `fork/height` (`std_msgs/msg/Float32`) = Tinggi fork dalam cm, dari frame ID `0x101` (uint16, mm)
-- `fork/target` (`std_msgs/msg/Float32`) = Target tinggi fork dalam cm, dikirim sebagai frame ID `0x102` (uint16, mm)
+- `fork/height` (`std_msgs/msg/Float32`) = Contoh topic tinggi fork dalam cm, dari frame ID contoh `0x101` (uint16, mm)
+- `fork/target` (`std_msgs/msg/Float32`) = Contoh topic target tinggi fork dalam cm, dikirim sebagai frame ID contoh `0x102` (uint16, mm)
 
 ```python
 import struct
@@ -525,7 +525,7 @@ map
     <child link="fork_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
-    <limit lower="0.0" upper="2.0" effort="1000" velocity="0.1"/>
+    <limit lower="0.0" upper="2.5" effort="1000" velocity="0.1"/>
   </joint>
 </robot>
 ```
@@ -579,7 +579,7 @@ Target SP-01: LiDAR ≥ 10 Hz, odometri ≥ 25 Hz, IMU ≥ 10 Hz, kehilangan dat
 
 ## Skala Encoder Fork
 
-Kendala minggu 1 adalah konstanta skala pembacaan ketinggian fork yang belum diketahui. Bagian ini merangkum cara menghitung dan memeriksanya.
+Konstanta skala pembacaan ketinggian fork perlu diperiksa sebelum kalibrasi. Bagian ini merangkum cara menghitung dan memeriksanya.
 
 ### Resolusi Encoder
 
@@ -597,7 +597,7 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 - Keliling roda yang tersirat = 250 / 22,42 = 11,15 cm
 - Diameter roda yang tersirat = 11,15 / π ≈ 3,55 cm
 
-Hasil kalibrasi menunjukkan skala firmware meleset ±3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
+Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
 
 ### Pemasangan Encoder dan Limit Switch
 
@@ -621,7 +621,7 @@ Hasil kalibrasi menunjukkan skala firmware meleset ±3%. Konstanta firmware tida
 - Laju frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
 - Limit switch = Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
 
-Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Pemasangan limit switch sudah sesuai firmware; yang perlu disesuaikan adalah label skematik (PB14 = LS_DOWN, PB15 = LS_UP).
+Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Pemasangan limit switch sudah sesuai firmware; yang perlu disesuaikan adalah label skematik, yang saat ini tertulis PB14 = LS_DOWN dan PB15 = LS_UP (seharusnya PB14 = LS_UP dan PB15 = LS_DOWN).
 
 ### Format Frame UART
 
@@ -644,7 +644,7 @@ tinggi nyata [cm] = 0,971 × bacaan encoder [cm] + 18,2
 residu maks 0,8 cm, simpangan baku 0,45 cm
 ```
 
-- Skala 0,971 = Konstanta firmware (`ENCODER_MAX` = 53808 untuk 250 cm) terlalu besar ±3%
+- Skala 0,971 = Nilai cm per count di firmware (250 / 53808) ≈ 3% terlalu besar; `ENCODER_MAX` yang sesuai ≈ 55 400 count untuk 250 cm
 - Offset 18,2 cm = Tinggi permukaan atas bilah saat fork di limit switch bawah (titik nol encoder)
 - Penerapan = Koreksi dilakukan di sisi PC; konstanta firmware tidak diubah
 - Target SP-03 = Galat < 2 cm tercapai pada rentang 0–150 cm; titik 200 cm dan putaran kedua (turun) belum diukur
@@ -655,7 +655,7 @@ residu maks 0,8 cm, simpangan baku 0,45 cm
 
 Minggu 3, sesuai rencana di logbook minggu 2:
 
-- Pengajuan charter rev. 3 untuk pengesahan (M1)
+- Pengajuan charter untuk pengesahan (M1)
 - Pengembangan driver CAN–ROS 2, driver LiDAR, IMU, dan encoder motor
 - Perekaman rosbag data sensor navigasi
 - Mulai penyusunan Detailed Engineering Design (DED) (minggu 3–5)
