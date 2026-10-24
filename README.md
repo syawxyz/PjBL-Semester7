@@ -31,8 +31,8 @@ Periode 12/10/2026 s.d. 16/10/2026 (tahap Perancangan), sesuai logbook individu 
 
 **Kendala dan solusi:**
 
-1. Format pesan CAN STM32 utama belum diketahui, sehingga decoder `ros2_socketcan` masih memakai ID contoh. Solusi: peta ID dan format data diambil dari repositori proyek AGV `agv-forklift-ta` (`agv_can.py`, sumber firmware `can_pc.h`/`can_pc.c`); lihat [Peta ID CAN Forklift](#peta-id-can-forklift).
-2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox dan AMCL dengan odometry roda + gyro IMU.
+1. Format pesan CAN STM32 utama belum diketahui, sehingga decoder `ros2_socketcan` masih memakai ID contoh. Solusi: peta ID dan format data diambil dari firmware STM32F407 forklift milik mitra; ringkasannya ada di [Data CAN Forklift](#data-can-forklift).
+2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox (mapping dan localization) dengan odometry roda + gyro IMU.
 3. Kendali kecepatan per roda semula diasumsikan berupa PI di STM32 utama. Solusi: driver motor MDSM (CiA-402, Profile Velocity Mode) sudah mengatur kecepatan sendiri, sehingga STM32F407 cukup mengirim setpoint kecepatan (rpm) tiap roda; blok diagram kendali gerak dan arsitektur sistem diperbarui.
 4. Nilai deadband dan overrun pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6–7.
 
@@ -74,7 +74,7 @@ ros2 launch ros2_socketcan socket_can_bridge.launch.xml interface:=can0
 - Field `can_msgs/msg/Frame` = `header`, `id`, `is_rtr`, `is_extended`, `is_error`, `dlc`, `data` (`uint8[8]`)
 - Parameter penting = `interface` (bawaan `can0`), `filters` (bawaan `0:0`, artinya semua ID diterima), `receiver_interval_sec` dan `sender_timeout_sec` (bawaan 0,01 s)
 
-Dengan paket ini, CAN-bridge node tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic bermakna, misalnya tinggi fork dari frame `0x42A`:
+Dengan paket ini, CAN-bridge node tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic bermakna, misalnya tinggi fork (ID dan posisi byte di bawah hanya contoh):
 
 ```python
 import struct
@@ -84,7 +84,8 @@ from can_msgs.msg import Frame
 from rclpy.node import Node
 from std_msgs.msg import Float32
 
-ID_TELE_POWER = 0x42A  # STM32F407 -> PC: daya + tinggi fork (u16 mm, byte 6-7)
+ID_FORK = 0x101  # ID contoh: tinggi fork u16 (satuan encoder x10), byte 6-7
+SKALA, OFFSET_CM = 0.971, 18.2  # hasil kalibrasi minggu 2
 
 
 class ForkDecoder(Node):
@@ -94,9 +95,9 @@ class ForkDecoder(Node):
         self.create_subscription(Frame, 'from_can_bus', self.on_frame, 50)
 
     def on_frame(self, f):
-        if f.id == ID_TELE_POWER and f.dlc >= 8:
-            height_mm = struct.unpack_from('<H', bytes(f.data), 6)[0]
-            self.pub.publish(Float32(data=height_mm / 10.0))
+        if f.id == ID_FORK and f.dlc >= 8:
+            raw = struct.unpack_from('<H', bytes(f.data), 6)[0] / 10.0
+            self.pub.publish(Float32(data=SKALA * raw + OFFSET_CM))
 
 
 def main():
@@ -108,33 +109,19 @@ if __name__ == '__main__':
     main()
 ```
 
-> **Catatan:** Nama launch file, topic, field message, dan parameter di atas sudah dicek dari paket `ros-humble-ros2-socketcan` 1.4.0. Format `0x42A` diambil dari `agv_can.py`. Kode contoh ini belum diuji di bus CAN forklift; di forklift, peran ini sudah dijalankan oleh `agv_can_bridge.py`.
+> **Catatan:** Nama launch file, topic, field message, dan parameter di atas sudah dicek dari paket `ros-humble-ros2-socketcan` 1.4.0. Kode contoh ini belum diuji di bus CAN forklift; di forklift, peran ini sudah dijalankan oleh CAN-bridge node.
 
-### Peta ID CAN Forklift
+### Data CAN Forklift
 
-Sumber: `agv-forklift-ta/ibe-agv/stm32_firmware/agv_can.py` (mengikuti firmware `Core/Inc/can_pc.h` dan `Core/Src/can_pc.c`). Bus CAN1 250 kbps, ID 11 bit, data *little-endian*. Node PC = 10 (`0x0A`).
+Format data diambil dari firmware STM32F407 forklift milik mitra. Rincian ID dan isi frame tidak dicantumkan di repositori publik ini; versi lengkapnya ada di DED bagian 5.3.
 
-**PC → STM32F407**
+- Bus = CAN1 250 kbps, ID 11 bit, data *little-endian*
+- PC → STM32F407 = Perintah gerak (v, ω) sekitar 50 Hz, target tinggi fork, dan E-stop software
+- STM32F407 → PC = Pose, gerak, daya dan tinggi fork, status, perintah yang sedang berlaku, serta data joystick (10–30 Hz)
+- Perangkat lain di bus = TPDO driver MDSM (statusword, posisi, arus, rpm motor) dan IMU HWT901B
+- Tinggi fork di frame telemetry masih dalam satuan encoder, jadi perlu dikoreksi dengan hasil kalibrasi minggu 2 (tinggi nyata = 0,971 × bacaan + 18,2 cm)
 
-- `0x00A` ESTOP = `data[0] = 0x55`
-- `0x01A` CMD (50 Hz) = `i16 v` mm/s, `i16 ω` mrad/s, `u8 mode` (1 = jalan), `u8 lampu`, `u8 beacon`, `u8 counter`
-- `0x02A` FORK = `u16` target tinggi dalam mm (firmware membatasi 0–250 cm)
-
-**STM32F407 → PC**
-
-- `0x40A` pose (30 Hz) = `f32 x`, `f32 y`
-- `0x41A` gerak (30 Hz) = `i16 θ`, `i16 yaw`, `i16 v`, `i16 ω` (dibagi 1000)
-- `0x42A` daya (10 Hz) = tegangan, arus, ..., `u16` tinggi fork (mm)
-- `0x43A` status (10 Hz) = flag (motor aktif, perintah PC baru, fork diam, E-stop, kalibrasi IMU), tombol, status pompa fork
-- `0x44A` perintah aktif (30 Hz) = v dan ω yang sedang dijalankan
-- `0x45A` joystick mentah (10 Hz)
-
-**Langsung dari perangkat lain di bus**
-
-- `0x181`, `0x281`, `0x381`, `0x481` = TPDO driver MDSM (node 1): statusword, posisi, torsi, kecepatan roda
-- `0x050` = IMU HWT901B (akselerasi, gyro, sudut)
-
-Di ROS 2, `agv_can_bridge.py` menerbitkan `/odom` dan `/fork_height`, serta menerima `/cmd_vel_agv` dan `/cmd_fork`.
+Di ROS 2, CAN-bridge node menerbitkan `/odom` dan `/fork_height`, serta menerima `/cmd_vel_agv` dan `/cmd_fork`.
 
 ### Kondisi Error Bus
 
@@ -154,6 +141,8 @@ sudo ip link set can0 type can bitrate 250000 restart-ms 100
 sudo ip link set can0 up
 ```
 
+> **Catatan:** Adapter USB-CAN di forklift (kelas gs_usb) menolak opsi `restart-ms`, jadi pemulihan bus-off di sana dilakukan dengan `ip link set can0 down` lalu `up`.
+
 ### Merekam dan Memutar Ulang Log CAN
 
 ```bash
@@ -170,10 +159,10 @@ Log CAN berguna untuk mengembangkan decoder di meja kerja tanpa menyalakan forkl
 Node minggu 2 membuka bus CAN sendiri, lalu mengurai frame di node yang sama. Dengan `ros2_socketcan`, akses bus dipisah ke node resmi, sehingga decoder cukup mengolah `can_msgs/msg/Frame`. Decoder juga bisa diuji dengan rosbag yang berisi `/from_can_bus`.
 
 **Apa yang terjadi jika kabel CAN terlepas saat forklift berjalan?**
-Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah `0x01A` dari PC timeout, forklift berhenti (target SP-09: ≤ 1 s).
+Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah gerak dari PC berhenti datang, forklift berhenti. Saat ini batasnya 1,5 s, masih di atas target SP-09 (≤ 1 s).
 
 **Kenapa perlu `restart-ms`?**
-Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba memulihkan bus otomatis.
+Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba memulihkan bus otomatis, selama driver adapternya mendukung opsi ini.
 
 ---
 
@@ -210,7 +199,7 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### Relevansi untuk Forklift
 
-FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya memindai satu bidang, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox (mapping) dan AMCL (localization), dengan odometry dari posisi roda + gyro IMU.
+FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya memindai satu bidang, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox untuk mapping dan localization, dengan odometry dari posisi roda + gyro IMU.
 
 ### Hasil Belajar
 
@@ -253,7 +242,7 @@ planner_server:
     GridBased:
       plugin: "nav2_smac_planner/SmacPlannerHybrid"
       motion_model_for_search: "REEDS_SHEPP"  # atau "DUBIN" (hanya maju)
-      minimum_turning_radius: 1.0             # meter, diukur dari forklift
+      minimum_turning_radius: 1.0             # contoh; ukur dari forklift
       reverse_penalty: 2.0                    # mundur lebih mahal dari maju
       change_penalty: 0.0                     # penalti ganti arah maju/mundur
       non_straight_penalty: 1.2               # penalti saat berbelok
@@ -288,13 +277,13 @@ Ada dua loop kendali: **kendali ketinggian fork** di STM32 utama, dan **kendali 
 
 ![Blok diagram kendali ketinggian fork](images/kendali-fork.png)
 
-- Referensi r = Target tinggi fork dari ROS 2 (`/cmd_fork`), dikirim lewat CAN `0x02A` ke STM32F407
+- Referensi r = Target tinggi fork dari ROS 2 (`/cmd_fork`), dikirim lewat CAN ke STM32F407
 - Error e = r − y
 - Kontroler = Logika on/off dengan deadband dan early cut di STM32F407
 - Sinyal kendali u = NAIK (pompa ON), TURUN (katup solenoid ON), atau DIAM
 - Plant = Silinder hidrolik dan fork
 - Disturbance = Overrun pompa: fork masih bergerak sebentar setelah pompa dimatikan (risiko R-03)
-- Umpan balik y = Tinggi fork dari encoder inkremental, dihitung modul fork STM32F401, dikirim lewat UART4; STM32F407 meneruskannya ke ROS 2 di frame `0x42A` (`/fork_height`)
+- Umpan balik y = Tinggi fork dari encoder inkremental, dihitung modul fork STM32F401, dikirim lewat UART4; STM32F407 meneruskannya ke ROS 2 lewat CAN (`/fork_height`)
 - Interlock = Limit switch atas melarang NAIK, limit switch bawah melarang TURUN dan menjadi titik nol (homing)
 
 Logika kendali (usulan):
@@ -315,12 +304,12 @@ Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini diide
 
 ![Blok diagram kendali gerak](images/kendali-gerak.png)
 
-- Loop luar (ROS 2) = Nav2 Planner membuat jalur global, Nav2 Controller menghasilkan `/cmd_vel` (v, ω), `velocity_smoother` membatasi kecepatan ≤ 0,5 m/s
-- CAN-bridge node = `agv_can_bridge` mengirim `/cmd_vel_agv` sebagai frame CAN `0x01A` (v mm/s, ω mrad/s) 50 Hz ke STM32F407
-- STM32F407 = Kinematika diferensial mengubah (v, ω) menjadi setpoint rpm roda kiri dan kanan, dikirim ke driver lewat CAN (RPDO `0x301`)
+- Loop luar (ROS 2) = Nav2 planner (Hybrid A*) membuat jalur, path follower mengikuti jalur dan berhenti jika ada obstacle di depan, lalu command multiplexer memilih perintah (manual > docking > otonom) menjadi `/cmd_vel_agv`
+- CAN-bridge node = Mengirim `/cmd_vel_agv` (v, ω) lewat CAN sekitar 50 Hz ke STM32F407
+- STM32F407 = Kinematika diferensial mengubah (v, ω) menjadi setpoint rpm motor kiri dan kanan (gear ratio 24), dikirim ke driver lewat CAN
 - Loop dalam (driver MDSM) = Driver mengatur kecepatan motor sendiri (CiA-402 Profile Velocity Mode) dengan umpan balik encoder motor
-- Feedback = Posisi roda dari TPDO MDSM (`0x281`/`0x481`) dan heading dari gyro IMU HWT901B (`0x050`) diolah menjadi `/odom` oleh STM32F407 dan `agv_can_bridge`; LiDAR masuk AMCL/SLAM menjadi pose di peta
-- Safety = Watchdog: perintah PC timeout → stop (target SP-09: ≤ 1 s); E-stop fisik memutus power motor tanpa software
+- Feedback = Posisi dan rpm motor dari driver MDSM serta heading dari gyro IMU HWT901B diolah menjadi `/odom` oleh STM32F407 dan CAN-bridge node; LiDAR masuk slam_toolbox (localization) menjadi pose di peta
+- Safety = Watchdog: perintah PC timeout → stop (target SP-09: ≤ 1 s); E-stop fisik memutus power motor tanpa software (rencana; wiring belum diverifikasi)
 
 Kinematika diferensial, dengan L = jarak antar roda dan r = jari-jari roda:
 
@@ -329,7 +318,7 @@ Kinematika diferensial, dengan L = jarak antar roda dan r = jari-jari roda:
 ωL = (v − ω · L/2) / r
 ```
 
-> **Catatan:** Desain ini sudah disesuaikan dengan firmware di `agv-forklift-ta`: tidak perlu kendali PI kecepatan di STM32, karena driver MDSM sudah mengatur kecepatan sendiri.
+> **Catatan:** Desain ini sudah disesuaikan dengan firmware forklift: tidak perlu kendali PI kecepatan di STM32, karena driver MDSM sudah mengatur kecepatan sendiri.
 
 ### Hasil Belajar
 
@@ -349,14 +338,14 @@ Arsitektur disusun berlapis mengikuti template DED:
 
 - Field = LiDAR 2D, encoder fork, 2 limit switch, joystick (ESP32), pompa dan katup fork, E-stop fisik, encoder motor, motor traksi kiri/kanan
 - Control = Bus CAN 250 kbps berisi STM32F407 utama (mode, watchdog, interlock, kendali fork, odometry), driver motor MDSM (CiA-402), dan IMU HWT901B; modul fork STM32F401 terhubung ke STM32F407 lewat UART4; joystick lewat UART
-- Edge = PC onboard dengan ROS 2 Humble: driver LiDAR, SLAM/AMCL, Nav2, manajemen tugas, klien MQTT, `agv_can_bridge` (adapter USB-CAN)
-- Supervisory = Halaman monitoring lewat MQTT (Wi-Fi)
+- Edge = PC onboard dengan ROS 2 Humble: driver LiDAR, slam_toolbox, Nav2, task manager, MQTT (rencana), CAN-bridge node (adapter USB-CAN)
+- Supervisory = Halaman monitoring lewat MQTT (Wi-Fi, rencana)
 
 Draf DED bagian 01–03 disusun dari template departemen (`PJBL7-K1-DED`, revisi 00, status DRAF):
 
 - 01 Pendahuluan = Ringkasan proyek, tujuan dokumen, ruang lingkup desain, definisi dan singkatan
 - 02 Kebutuhan Sistem = Kebutuhan fungsional FR-01 s.d. FR-10 dan non-fungsional NFR-01 s.d. NFR-08, dipetakan ke SP-01 s.d. SP-09
-- 03 Arsitektur Sistem = Diagram blok di atas dan deskripsi subsistem SS-01 s.d. SS-07
+- 03 Arsitektur Sistem = Diagram blok di atas dan deskripsi subsistem SS-01 s.d. SS-06
 
 Bagian 04–10 (desain hardware, software, flowchart, rencana uji, keselamatan, lampiran, review) disusun minggu 4–5 untuk review desain M2.
 
@@ -366,7 +355,7 @@ Bagian 04–10 (desain hardware, software, flowchart, rencana uji, keselamatan, 
 
 Minggu 4, sesuai rencana di logbook minggu 3:
 
-- Verifikasi frame CAN di bus forklift dengan `candump`, dibandingkan dengan peta ID dari `agv_can.py`
+- Verifikasi frame CAN di bus forklift dengan `candump`, dibandingkan dengan peta ID dari firmware
 - Driver LiDAR: `/scan` tampil di RViz
 - Kalibrasi fork titik 200 cm dan putaran turun
 - Perbaikan label limit switch di skematik
