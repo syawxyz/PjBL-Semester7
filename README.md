@@ -31,7 +31,7 @@ Periode 19/10/2026 s.d. 23/10/2026 (tahap Perancangan), sesuai logbook individu 
 
 1. Pekerjaan hardware minggu 4 (verifikasi frame CAN dengan candump di forklift, driver LiDAR /scan, kalibrasi fork titik 200 cm, perbaikan label limit switch) belum dikerjakan karena minggu ini difokuskan pada DED. Solusi: dikerjakan di minggu 5 sebelum review desain M2.
 2. Wiring E-stop dan driver pompa belum terdokumentasi, dan skematik board STM32F407 belum ada. Solusi: telusuri wiring panel forklift dan lampirkan di DED.
-3. Watchdog firmware 1,5 s melebihi target SP-09 (≤ 1 s). Solusi: diuji pada T-05; ambang diturunkan atau mengandalkan watchdog bridge 0,6 s.
+3. Watchdog firmware 1,5 s melebihi target SP-09 (≤ 1 s). Solusi: ambang watchdog firmware diturunkan ke ≤ 1 s, lalu diverifikasi pada T-05.
 4. Power budget belum dapat dihitung karena arus pompa, PC, dan elektronik belum diukur. Solusi: diukur saat kalibrasi minggu 6–7.
 
 **Capaian target:** Sebagian — target (1) dan (2) tercapai; (3) belum.
@@ -40,7 +40,7 @@ Materi minggu sebelumnya:
 
 - [Branch week1](https://github.com/syawxyz/PjBL-Semester7/tree/week1) = Diskusi dengan mitra, Nav2, RViz, algoritma A*, arsitektur dan skematik modul fork
 - [Branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2) = Simulasi Nav2 dan SLAM, Theta*, perakitan dan kalibrasi modul fork, CAN bus dasar dan CAN-bridge node, TF tree dan URDF, rosbag2
-- [Branch week3](https://github.com/syawxyz/PjBL-Semester7/tree/week3) = CAN lanjutan dan peta ID CAN forklift, FAST-LIO dan DLIO, Hybrid A*, desain kontrol forklift, draf DED bagian 01–03
+- [Branch week3](https://github.com/syawxyz/PjBL-Semester7/tree/week3) = CAN lanjutan dan data CAN forklift, FAST-LIO dan DLIO, Hybrid A*, desain kontrol forklift, draf DED bagian 01–03
 
 ---
 
@@ -59,7 +59,7 @@ DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milesto
 - 09 Daftar Lampiran = Skematik, datasheet, kode program, gambar mekanik
 - 10 Review Desain dan Persetujuan = Checklist review (diisi dosen pembimbing)
 
-Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork STM32F401, node ROS 2, dan konfigurasi Nav2 di repositori proyek AGV (`agv-forklift-ta`).
+Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork STM32F401, dan node ROS 2 forklift milik mitra. Rincian yang bersifat internal (peta perintah CAN, alamat jaringan, dan parameter navigasi) hanya dicantumkan di dokumen DED.
 
 ![Arsitektur sistem AMR forklift](images/arsitektur-sistem.png)
 
@@ -73,8 +73,8 @@ Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork ST
 - Modul fork = STM32F401CCU6 Black Pill dengan encoder incremental 600 PPR dan dua limit switch
 - Driver motor = MDSM25B96G-2, dual channel, CANopen CiA-402 node 1, arus rated 24 A
 - Motor traksi = TZ09-D09 (2 unit), 2950 rpm, gear ratio 24, roda Ø210 mm
-- IMU = HWT901B versi CAN, ID 0x050
-- LiDAR = Autonics LSC, FOV 270°, 15 Hz, jarak 0,3–25 m, Ethernet
+- IMU = HWT901B versi CAN
+- LiDAR = Autonics LSC, FOV 270°, 15 Hz, Ethernet (jarak maksimum dari datasheet belum diverifikasi di lapangan)
 - PC onboard = Intel NUC 11 (Core i3-1115G4, RAM 16 GB), Ubuntu 22.04, ROS 2 Humble
 - Baterai = Sistem 48 V
 
@@ -101,20 +101,20 @@ Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork ST
 ![Alur data software](images/ded-software.png)
 
 - Firmware = STM32F407 (kontroler utama) dan STM32F401 (modul fork), bahasa C dengan STM32 HAL
-- Backend = PC onboard dengan ROS 2 Humble (Python): agv_can_bridge, slam_toolbox, Nav2 SmacPlannerHybrid, path_exec_node, cmd_mux_node, data_logger
-- Frontend / HMI = GUI web (gui_server) di port 8080
+- Backend = PC onboard dengan ROS 2 Humble (Python): CAN-bridge node, slam_toolbox (mapping dan localization), Nav2 planner (Hybrid A*), path follower, command multiplexer, data logger
+- Frontend / HMI = GUI web operator
 
 ### Modul Utama
 
 - autofork_routine() = Kendali on/off fork dengan early cut 2,0 cm (naik) dan 3,0 cm (turun), aktif lagi jika error > 3,0 cm
-- Kinematika dan driver = Mengubah (v, ω) menjadi rpm roda kiri/kanan, dibatasi ±2950 rpm, dengan stall recovery
+- Kinematika dan driver = Mengubah (v, ω) menjadi rpm motor kiri/kanan (gear ratio 24), dibatasi ±2950 rpm motor (≈ ±123 rpm roda), dengan stall recovery
 - Arbitrase mode dan watchdog = Memilih mode PC, JOYSTICK, atau INIT; link PC dianggap timeout setelah 1,5 s
-- agv_can_bridge = Satu-satunya node yang menggerakkan robot; mengubah /cmd_vel_agv dan /cmd_fork menjadi frame CAN, dengan watchdog perintah 0,6 s
-- planner_server + smac_adapter = Path planning Hybrid A* Reeds-Shepp dengan radius belok 1,21 m
-- path_exec_node + halangan = Path follower; stop jika ada obstacle dalam 1,2 m di depan
-- cmd_mux_node = Memilih perintah dengan prioritas manual, lalu docking, lalu otonom
+- CAN-bridge node = Satu-satunya node yang menggerakkan robot; mengubah /cmd_vel_agv dan /cmd_fork menjadi frame CAN, dengan watchdog perintah
+- Nav2 planner = Path planning Hybrid A* yang memperhitungkan radius belok forklift
+- Path follower = Mengikuti jalur; stop jika ada obstacle di depan forklift
+- Command multiplexer = Memilih perintah dengan prioritas manual, lalu docking, lalu otonom
 
-Peta ID CAN lengkap ada di [branch week3](https://github.com/syawxyz/PjBL-Semester7/tree/week3#peta-id-can-forklift).
+Ringkasan data CAN ada di [branch week3](https://github.com/syawxyz/PjBL-Semester7/tree/week3#data-can-forklift).
 
 ---
 
@@ -130,7 +130,7 @@ Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware memba
 
 ![Flowchart autofork_routine](images/ded-flowchart-fork.png)
 
-- Homing = Saat pertama kali jalan, fork diturunkan sampai limit switch bawah aktif, lalu encoder dianggap nol
+- Homing = Hanya berjalan di mode PC: fork diturunkan sampai limit switch bawah aktif; modul fork me-nol-kan count setiap kali limit switch bawah tertekan
 - Naik = Pompa dimatikan saat error ≤ 2,0 cm (early cut) untuk mengimbangi overrun
 - Turun = Pompa dimatikan saat error ≥ −3,0 cm (early cut)
 - Diam = Pompa dinyalakan lagi hanya jika |error| > 3,0 cm
@@ -139,22 +139,22 @@ Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware memba
 ### State Machine
 
 - INIT = Saat boot, atau tidak ada joystick maupun PC yang aktif; semua target nol
-- JOYSTICK = Frame joystick valid; v dan ω mengikuti stik, tombol R2/L2 menggerakkan fork
-- PC = Perintah 0x01A masih baru (< 1,5 s), sudah di-arm, tanpa override; mengikuti 0x01A dan 0x02A selama motion gate terpenuhi
-- E-STOP (latch) = Frame 0x00A berisi 0x55 di mode apa pun; kembali normal setelah frame 0x01A disarm
+- JOYSTICK = Frame joystick valid; override = 0 setelah boot (lampu kuning), jadi v dan ω baru mengikuti stik setelah tombol segitiga ditekan; tombol R2/L2 menggerakkan fork tanpa perlu override
+- PC = Perintah gerak dari PC masih baru (< 1,5 s), sudah di-arm, tanpa override; mengikuti perintah gerak dan target fork selama motion gate terpenuhi
+- E-STOP (latch) = E-stop software dari PC; perintah gerak dari PC ditahan sampai operator melepas latch, sedangkan joystick tetap bisa dipakai
 
 ---
 
 ## Rencana Pengujian
 
 - T-01 (SP-01, SP-02) = Rekam rosbag 60 menit dan uji odometry lurus 5 m serta putar 360°
-- T-02 (SP-03, SP-04) = Ukur tinggi fork di 6 titik 0–200 cm (naik dan turun) dan 10 target acak lewat /cmd_fork
-- T-03 (SP-01) = Cocokkan frame CAN hasil candump dengan peta ID, cek telemetry selama 10 menit
+- T-02 (SP-03, SP-04) = Ukur tinggi fork di 6 titik dari posisi terendah (≈ 18 cm) sampai 200 cm (naik dan turun) dan 10 target acak lewat /cmd_fork
+- T-03 (SP-01) = Cocokkan frame CAN hasil candump dengan peta ID, cek riwayat task manager dan telemetry selama 10 menit
 - T-04 (SP-05, SP-06, SP-07) = Localization di 5 titik referensi, 20 percobaan navigasi point-to-point, 10 siklus A → fork naik → B → fork turun
 - T-05 (SP-08, SP-09) = Uji E-stop, link terputus, kecepatan, dan 50 perintah manual lewat remote
 - T-06 (security) = Perintah gerak tanpa arming, tanpa deadman, dan setelah E-stop tidak boleh menggerakkan forklift
 
-Status saat ini: T-02 sebagian (kalibrasi 29/9 pada 0–150 cm, residu maksimal 0,8 cm); uji lainnya belum dilakukan.
+Status saat ini: T-02 sebagian (kalibrasi minggu 2 pada 18–150 cm, residu maksimal 0,8 cm); uji lainnya belum dilakukan.
 
 ---
 
@@ -162,14 +162,12 @@ Status saat ini: T-02 sebagian (kalibrasi 29/9 pada 0–150 cm, residu maksimal 
 
 Hal-hal berikut ditemukan saat menyusun DED dan perlu ditindaklanjuti sebelum atau saat pengujian:
 
-- Watchdog firmware = Link PC dianggap timeout setelah 1,5 s, melebihi target SP-09 (≤ 1 s); watchdog di agv_can_bridge 0,6 s
-- E-stop = Belum ada input E-stop di firmware, dan wiring E-stop fisik belum terdokumentasi
-- Driver pompa = Rangkaian antara GPIO STM32F407 dan pompa/valve belum terdokumentasi
 - Skematik = Skematik board STM32F407 belum tersedia; baru modul fork yang lengkap
-- Power budget = Baru motor traksi yang diketahui (puncak ± 16,7 A per channel pada 48 V); pompa, PC, dan elektronik belum diukur
-- Limit switch = Label PB14/PB15 di skematik dan firmware perlu diselaraskan
-- Sisi belakang = Belum ada sensor di sisi fork, sehingga gerak mundur harus didampingi orang
-- Firmware terpasang = Firmware terakhir di-flash 24/8, sedangkan logika early cut di kode bertanggal 26/8; versi yang berjalan di forklift perlu dipastikan
+- Power budget = Baru motor traksi yang diketahui (batas arus driver 16,7 A per channel pada 48 V); pompa, PC, dan elektronik belum diukur
+- Limit switch = Firmware memakai PB14 = atas dan PB15 = bawah; label di skematik perlu disesuaikan
+- Firmware terpasang = Firmware terakhir di-flash 24/8, sedangkan logika early cut di kode bertanggal 26/8; firmware perlu di-flash ulang sebelum uji fork
+
+Temuan yang berkaitan dengan keselamatan dicatat di DED bagian 07–08 dan dibahas saat review desain.
 
 ---
 
