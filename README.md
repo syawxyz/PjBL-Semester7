@@ -70,7 +70,7 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 
 **Target minggu ini:** merancang Project Charter serta mempelajari Nav2, SLAM, algoritma A*, Theta*, dan merancang arsitektur sistem untuk sensor ketinggian fork.
 
-**Kendala:** belum mempelajari Nav2, SLAM, dan algoritma Theta*.
+**Kendala:** belum mempelajari SLAM dan algoritma Theta*.
 
 **Capaian target:** Sebagian.
 
@@ -235,7 +235,7 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 ## Rencana Selanjutnya
 
 - Pembuatan PCB fork dan test firmware
-- Mempelajari Nav2, SLAM, dan algoritma Theta* (materi SLAM dan Theta* ada di [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2))
+- Mempelajari SLAM dan algoritma Theta* (materinya ada di [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2))
 - Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
 
 ---
