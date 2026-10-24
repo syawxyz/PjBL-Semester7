@@ -52,7 +52,7 @@ Materi minggu 1 (diskusi dengan mitra, Nav2, RViz, algoritma A*, serta arsitektu
 
 ## Uji Coba Simulasi Nav2
 
-Sebelum diterapkan pada forklift, Nav2 diuji terlebih dahulu menggunakan simulasi robot TurtleBot3 Waffle bawaan Nav2 di Gazebo. Uji coba ini bertujuan memahami alur kerja Nav2: lokalisasi dengan AMCL, perencanaan jalur, dan pengiriman goal melalui RViz.
+Sebelum diterapkan pada forklift, Nav2 diuji terlebih dahulu menggunakan simulasi robot TurtleBot3 Waffle bawaan Nav2 di Gazebo. Uji coba ini bertujuan memahami alur kerja Nav2: localization dengan AMCL, path planning, dan pengiriman goal melalui RViz.
 
 **Lingkungan:** Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11.
 
@@ -121,15 +121,15 @@ Jika berhasil, terminal menampilkan `Goal finished with status: SUCCEEDED`.
 
 - Sebelum initial pose = Global Status: Error; frame `map` belum tersedia sehingga costmap global menunggu transform
 - Setelah initial pose = Global Status: Ok; Navigation dan Localization *active*; costmap, LaserScan, dan partikel AMCL tampil
-- Saat navigasi = Robot mengikuti jalur hasil planner sambil menghindari halangan; feedback (ETA, sisa jarak, recovery) tampil di panel Navigation 2
+- Saat navigasi = Robot mengikuti jalur hasil planner sambil menghindari obstacle; feedback (ETA, sisa jarak, recovery) tampil di panel Navigation 2
 
 ### Hasil Belajar
 
 **Kenapa Global Status di RViz Error sebelum initial pose diberikan?**
-Karena robot tidak tahu posisi aktualnya di peta. Odometri hanya tahu perpindahan robot dari titik awalnya, bukan posisinya di peta, untuk itu `amcl` membutuhkan pose awal (initial pose). Setelah pose awal diberikan, `amcl` menerbitkan TF `map → odom` sehingga Global Status menjadi Ok.
+Karena robot tidak tahu posisi aktualnya di peta. Odometry hanya tahu perpindahan robot dari titik awalnya, bukan posisinya di peta, untuk itu `amcl` membutuhkan initial pose. Setelah initial pose diberikan, `amcl` mem-publish TF `map → odom` sehingga Global Status menjadi Ok.
 
 **Kenapa Localization *inactive* di mode SLAM, tapi robot tetap bisa bernavigasi?**
-Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasnya adalah slam_toolbox. slam_toolbox menerbitkan peta (`/map`) dan TF `map → odom`, sehingga Nav2 tetap bisa bernavigasi.
+Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasnya adalah slam_toolbox. slam_toolbox mem-publish peta (`/map`) dan TF `map → odom`, sehingga Nav2 tetap bisa bernavigasi.
 
 **Isi file peta (`tb3_sim.yaml`)**
 
@@ -150,7 +150,7 @@ Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yan
 **Input**
 
 - `/scan` (`sensor_msgs/msg/LaserScan`) = Driver LiDAR 2D
-- TF `odom → base_link` = Odometri encoder + IMU (EKF)
+- TF `odom → base_link` = Odometry encoder + IMU (EKF)
 - TF `base_link → laser` = URDF / static transform
 
 **Output** (dari slam_toolbox)
@@ -162,8 +162,8 @@ Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yan
 
 **Apa yang dihasilkan SLAM, dan apa bedanya dengan AMCL?**
 
-- SLAM = Membuat peta dari masukan LiDAR dan odometri, sekaligus memperkirakan posisi robot di peta yang sedang dibuat
-- AMCL = Menggunakan peta yang dihasilkan SLAM dan masukan sensor untuk mengetahui posisi robot
+- SLAM = Membuat peta dari input LiDAR dan odometry, sekaligus memperkirakan posisi robot di peta yang sedang dibuat
+- AMCL = Menggunakan peta yang dihasilkan SLAM dan input sensor untuk mengetahui posisi robot
 
 Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta tersebut.
 
@@ -183,7 +183,7 @@ Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta terseb
 ### Catatan
 
 - Gerakkan forklift dengan kecepatan rendah dan kembali ke titik awal agar terjadi *loop closure*.
-- Kualitas peta sangat bergantung pada akurasi odometri, sehingga kalibrasi encoder dan IMU perlu dilakukan terlebih dahulu.
+- Kualitas peta sangat bergantung pada akurasi odometry, sehingga kalibrasi encoder dan IMU perlu dilakukan terlebih dahulu.
 - Periksa apakah pandangan LiDAR terhalang mast atau fork; jika ya, batasi sudut scan atau gunakan filter laser.
 
 ---
@@ -351,7 +351,7 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 - ID = Identitas pesan, 11 bit (standard) atau 29 bit (extended); ID juga menentukan prioritas
 - DLC = Jumlah byte data, 0 sampai 8 byte (CAN klasik)
 - Data = Isi pesan, misalnya tinggi fork atau kecepatan motor
-- CRC dan ACK = Pengecekan kesalahan dan konfirmasi penerimaan, diurus otomatis oleh hardware
+- CRC dan ACK = Error checking dan konfirmasi penerimaan, diurus otomatis oleh hardware
 
 ### Perintah Dasar SocketCAN
 
@@ -490,11 +490,11 @@ Satuan mengikuti REP 103: meter, radian, detik.
 
 ```
 map
- └── odom              ← slam_toolbox (mapping) / amcl (lokalisasi)
-      └── base_link    ← robot_localization (EKF: odometri encoder + IMU)
+ └── odom              ← slam_toolbox (mapping) / amcl (localization)
+      └── base_link    ← robot_localization (EKF: odometry encoder + IMU)
            ├── laser       ← statis, dari URDF
            ├── imu_link    ← statis, dari URDF
-           └── fork_link   ← sendi prismatic, dari tinggi fork (/joint_states)
+           └── fork_link   ← joint prismatic, dari tinggi fork (/joint_states)
 ```
 
 ### Draf URDF
@@ -519,7 +519,7 @@ map
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <!-- Fork bergerak naik-turun: sendi prismatic sumbu z, batas dalam meter -->
+  <!-- Fork bergerak naik-turun: joint prismatic sumbu z, batas dalam meter -->
   <joint name="fork_joint" type="prismatic">
     <parent link="base_link"/>
     <child link="fork_link"/>
@@ -530,14 +530,14 @@ map
 </robot>
 ```
 
-`robot_state_publisher` membaca URDF ini dan menerbitkan TF untuk semua sendi. Untuk `fork_joint`, nilainya diambil dari topic `/joint_states`, yang dapat diisi oleh CAN-bridge node dari tinggi fork.
+`robot_state_publisher` membaca URDF ini dan mem-publish TF untuk semua joint. Untuk `fork_joint`, nilainya diambil dari topic `/joint_states`, yang dapat diisi oleh CAN-bridge node dari tinggi fork.
 
 ### Hasil Belajar
 
 **Kenapa TF `map → odom` dan `odom → base_link` dipisah?**
-Odometri bersifat halus dan kontinu, tetapi galatnya menumpuk (*drift*). Lokalisasi (AMCL atau SLAM) tidak menumpuk galat, tetapi bisa melompat. Dengan dipisah, `odom → base_link` tetap halus untuk controller, sedangkan `map → odom` menampung koreksi dari lokalisasi (REP 105).
+Odometry bersifat halus dan kontinu, tetapi error-nya menumpuk (*drift*). Localization (AMCL atau SLAM) tidak menumpuk error, tetapi bisa melompat. Dengan dipisah, `odom → base_link` tetap halus untuk controller, sedangkan `map → odom` menampung koreksi dari localization (REP 105).
 
-**Siapa yang menerbitkan masing-masing TF?**
+**Siapa yang mem-publish masing-masing TF?**
 
 - `map → odom` = slam_toolbox atau amcl
 - `odom → base_link` = EKF `robot_localization`
@@ -573,7 +573,7 @@ kehilangan data   = (1 − pesan diterima / pesan seharusnya) × 100%
 
 Contoh perhitungan: LiDAR 10 Hz direkam 60 menit (3600 s) → seharusnya 36000 pesan. Jika `ros2 bag info` menunjukkan 35500 pesan, kehilangan data = (1 − 35500/36000) × 100% = 1,39%, masih memenuhi target SP-01 (< 2%).
 
-Target SP-01: LiDAR ≥ 10 Hz, odometri ≥ 25 Hz, IMU ≥ 10 Hz, kehilangan data < 2% pada rekaman 60 menit.
+Target SP-01: LiDAR ≥ 10 Hz, odometry ≥ 25 Hz, IMU ≥ 10 Hz, kehilangan data < 2% pada rekaman 60 menit.
 
 ---
 
@@ -584,7 +584,7 @@ Konstanta skala pembacaan ketinggian fork perlu diperiksa sebelum kalibrasi. Bag
 ### Resolusi Encoder
 
 ```
-count per putaran = PPR × 4          (timer STM32 mode encoder, kanal A dan B)
+count per putaran = PPR × 4          (timer STM32 mode encoder, channel A dan B)
                   = 600 × 4 = 2400 count
 jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 ```
@@ -613,7 +613,7 @@ Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware ti
 - Resolusi encoder = 600 PPR × 4 = 2400 count per putaran
 - Filter input TIM1 = 10 (IC1 dan IC2)
 - Counter = 16 bit, diperluas ke int32 lewat `posisi += (int16)(now − last)`
-- Titik nol = Counter di-nol-kan selama limit switch bawah (`limit_sw[1]`, PB15) tertekan
+- Titik nol = Counter di-reset ke nol selama limit switch bawah (`limit_sw[1]`, PB15) tertekan
 - Rumus = tinggi [cm] = count × 250 / 53808, count dibatasi 0–53808
 - Resolusi tinggi = 0,00465 cm per count (≈ 0,046 mm)
 - Contoh = 100 cm = 21523 count
@@ -629,7 +629,7 @@ Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limi
 
 ### Hasil Kalibrasi dan Uji
 
-Fork sudah dikalibrasi dan diuji dengan meteran, diukur dari lantai ke permukaan atas bilah fork, dengan fork diam di tiap titik.
+Fork sudah dikalibrasi dan diuji dengan meteran, diukur dari lantai ke permukaan atas fork, dengan fork diam di tiap titik.
 
 - Titik 0 cm = Bacaan encoder 0,0 cm, meteran 18,0 cm, residu −0,18 cm
 - Titik 20 cm = Bacaan encoder 7,9 cm, meteran 26,0 cm, residu +0,15 cm
@@ -645,9 +645,9 @@ residu maks 0,8 cm, simpangan baku 0,45 cm
 ```
 
 - Skala 0,971 = Nilai cm per count di firmware (250 / 53808) ≈ 3% terlalu besar; `ENCODER_MAX` yang sesuai ≈ 55 400 count untuk 250 cm
-- Offset 18,2 cm = Tinggi permukaan atas bilah saat fork di limit switch bawah (titik nol encoder)
+- Offset 18,2 cm = Tinggi permukaan atas fork saat fork di limit switch bawah (titik nol encoder)
 - Penerapan = Koreksi dilakukan di sisi PC; konstanta firmware tidak diubah
-- Target SP-03 = Galat < 2 cm tercapai pada rentang 0–150 cm; titik 200 cm dan putaran kedua (turun) belum diukur
+- Target SP-03 = Error < 2 cm tercapai pada rentang 0–150 cm; titik 200 cm dan putaran kedua (turun) belum diukur
 
 ---
 
