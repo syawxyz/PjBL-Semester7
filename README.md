@@ -31,7 +31,7 @@ Periode 19/10/2026 s.d. 23/10/2026 (tahap Perancangan), sesuai logbook individu 
 
 1. Pekerjaan hardware minggu 4 (verifikasi frame CAN dengan candump di forklift, driver LiDAR /scan, kalibrasi fork titik 200 cm, perbaikan label limit switch) belum dikerjakan karena minggu ini difokuskan pada DED. Solusi: dikerjakan di minggu 5 sebelum review desain M2.
 2. Wiring E-stop dan driver pompa belum terdokumentasi, dan skematik board STM32F407 belum ada. Solusi: telusuri wiring panel forklift dan lampirkan di DED.
-3. Watchdog firmware 1,5 s melebihi target SP-09 (≤ 1 s). Solusi: ambang watchdog firmware diturunkan ke ≤ 1 s, lalu diverifikasi pada T-05.
+3. Watchdog firmware 1,5 s melebihi target SP-09 (≤ 1 s). Solusi: timeout watchdog firmware diturunkan ke ≤ 1 s, lalu diverifikasi pada T-05.
 4. Power budget belum dapat dihitung karena arus pompa, PC, dan elektronik belum diukur. Solusi: diukur saat kalibrasi minggu 6–7.
 
 **Capaian target:** Sebagian — target (1) dan (2) tercapai; (3) belum.
@@ -130,7 +130,7 @@ Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware memba
 
 ![Flowchart autofork_routine](images/ded-flowchart-fork.png)
 
-- Homing = Hanya berjalan di mode PC: fork diturunkan sampai limit switch bawah aktif; modul fork me-nol-kan count setiap kali limit switch bawah tertekan
+- Homing = Hanya berjalan di mode PC: fork diturunkan sampai limit switch bawah aktif; modul fork me-reset count ke nol setiap kali limit switch bawah tertekan
 - Naik = Pompa dimatikan saat error ≤ 2,0 cm (early cut) untuk mengimbangi overrun
 - Turun = Pompa dimatikan saat error ≥ −3,0 cm (early cut)
 - Diam = Pompa dinyalakan lagi hanya jika |error| > 3,0 cm
