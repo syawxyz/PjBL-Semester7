@@ -78,15 +78,15 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 
 ## Nav2
 
-**Nav2** adalah framework navigasi pada ROS 2 untuk membawa robot dari posisi awal ke posisi tujuan secara aman. Nav2 menangani lokalisasi, perencanaan jalur, penghindaran halangan, dan *recovery* ketika robot terjebak.
+**Nav2** adalah framework navigasi pada ROS 2 untuk membawa robot dari posisi awal ke posisi tujuan secara aman. Nav2 menangani localization, path planning, obstacle avoidance, dan *recovery* ketika robot terjebak.
 
 ### Komponen Utama
 
 - `map_server` = Memuat peta (`.yaml` + `.pgm`)
-- `amcl` = Lokalisasi robot pada peta menggunakan LiDAR (*particle filter*)
+- `amcl` = Localization robot pada peta menggunakan LiDAR (*particle filter*)
 - `planner_server` = Membuat jalur global dari posisi robot ke tujuan
 - `controller_server` = Mengikuti jalur dan menghasilkan perintah kecepatan `/cmd_vel`
-- Costmap 2D (global & local) = Peta biaya berisi area bebas dan halangan
+- Costmap 2D (global & local) = Peta cost berisi area bebas dan obstacle
 - `behavior_server` = Perilaku *recovery*: spin, backup, wait
 - `bt_navigator` = Mengatur alur navigasi menggunakan *Behavior Tree*
 - `velocity_smoother` = Menghaluskan perintah kecepatan sebelum dikirim ke motor
@@ -96,7 +96,7 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 
 **Apa beda tugas planner dan controller?**
 
-- Planner = Bertugas menghitung lintasan yang aman berdasarkan peta costmap global
+- Planner = Bertugas menghitung path yang aman berdasarkan peta costmap global
 - Controller = Menghasilkan perintah kecepatan (`/cmd_vel`) yang akan dieksekusi oleh hardware, dengan tujuan dan jalur yang sudah ditentukan oleh planner
 
 **Apa beda costmap global dan costmap lokal?**
@@ -130,9 +130,9 @@ ros2 launch nav2_bringup bringup_launch.py \
 
 - Map (`/map`) = Menampilkan peta hasil SLAM
 - LaserScan (`/scan`) = Memeriksa data LiDAR
-- TF = Memeriksa pohon frame (`map`, `odom`, `base_link`, `laser`)
+- TF = Memeriksa TF tree (`map`, `odom`, `base_link`, `laser`)
 - RobotModel (`/robot_description`) = Menampilkan model forklift dari URDF
-- Odometry (`/odom`) = Memeriksa hasil odometri
+- Odometry (`/odom`) = Memeriksa hasil odometry
 - Path (`/plan`) = Menampilkan jalur global dari Nav2
 - Map costmap (`/global_costmap/costmap`, `/local_costmap/costmap`) = Menampilkan costmap Nav2
 
@@ -189,7 +189,7 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 ![Arsitektur sistem modul sensor ketinggian fork](images/fork-arsitektur.png)
 
-- Encoder incremental = Menghasilkan pulsa kanal A dan B saat fork bergerak, untuk menghitung posisi dan arah gerak fork
+- Encoder incremental = Menghasilkan pulsa channel A dan B saat fork bergerak, untuk menghitung posisi dan arah gerak fork
 - Limit switch (2 buah) = Penanda batas atas dan batas bawah fork, juga sebagai titik acuan saat homing
 - STM32F401 Black Pill = Menghitung posisi encoder, mengubahnya menjadi ketinggian (cm), dan membaca kondisi limit switch
 - UART = Jalur komunikasi dua arah ke sistem utama: data ketinggian dikirim ke sistem utama, perintah dari sistem utama diterima STM32, dengan checksum
