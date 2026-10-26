@@ -46,14 +46,14 @@ Materi minggu sebelumnya:
 
 ## Detailed Engineering Design (DED)
 
-DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milestone M2, minggu 5). Dokumen disusun dari template departemen dengan nomor `PJBL7-K1-DED`, revisi 00, status DRAF, sebanyak 18 halaman.
+DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milestone M2, minggu 5). Dokumen disusun dari template departemen dengan nomor `PJBL7-K1-DED`, status DRAF. Revisi 00 (23/10/2026, 18 halaman) disusun di minggu 4; revisi 01 (26/10/2026, 19 halaman) mengganti diagram blok dan arsitektur software serta menambah flowchart operasi navigasi.
 
 - 01 Pendahuluan = Ringkasan proyek, tujuan dokumen, ruang lingkup desain, definisi dan singkatan
 - 02 Kebutuhan Sistem = Kebutuhan fungsional FR-01 s.d. FR-10 dan non-fungsional NFR-01 s.d. NFR-08, dipetakan ke SP-01 s.d. SP-09
 - 03 Arsitektur Sistem = Diagram blok berlapis dan deskripsi subsistem SS-01 s.d. SS-06
 - 04 Desain Hardware = Alur sinyal, BOM, daftar I/O, skematik dan wiring, power budget, tata letak panel
 - 05 Desain Software = Arsitektur software ROS 2, daftar modul, protokol CAN dan UART, struktur data
-- 06 Flowchart dan Logika Program = Flowchart program utama, flowchart kendali fork, state machine
+- 06 Flowchart dan Logika Program = Flowchart program utama, flowchart kendali fork, flowchart operasi navigasi, state machine
 - 07 Rencana Pengujian dan Verifikasi = Uji T-01 s.d. T-06
 - 08 Keselamatan dan Standar Acuan = PUIL 2011, IEC 61131-3, IEC 60529, K3 pengujian, ISO 3691-4 sebagai acuan
 - 09 Daftar Lampiran = Skematik, datasheet, kode program, gambar mekanik
@@ -61,7 +61,7 @@ DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milesto
 
 Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork STM32F401, dan node ROS 2 forklift milik mitra. Rincian yang bersifat internal (peta perintah CAN, alamat jaringan, dan parameter navigasi) hanya dicantumkan di dokumen DED.
 
-![Arsitektur sistem AMR forklift](images/arsitektur-sistem.png)
+![Diagram blok sistem (input, proses, output)](images/diagram-blok.png)
 
 ---
 
@@ -98,7 +98,7 @@ Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork ST
 
 ## Desain Software
 
-![Alur data software](images/ded-software.png)
+![Arsitektur software ROS 2 di PC robot](images/arsitektur-sistem-ros2.png)
 
 - Firmware = STM32F407 (kontroler utama) dan STM32F401 (modul fork), bahasa C dengan STM32 HAL
 - Backend = PC onboard dengan ROS 2 Humble (Python): CAN-bridge node, slam_toolbox (mapping dan localization), Nav2 planner (Hybrid A*), path follower, command multiplexer, data logger
@@ -135,6 +135,12 @@ Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware memba
 - Turun = Pompa dimatikan saat error ≥ −3,0 cm (early cut)
 - Diam = Pompa dinyalakan lagi hanya jika |error| > 3,0 cm
 - Interlock = Pompa naik/turun hanya menyala selama limit switch di arah itu belum aktif
+
+### Operasi Navigasi (PC Onboard)
+
+![Flowchart operasi navigasi](images/flowchart-operasi-navigasi.png)
+
+Setelah peta dimuat dan robot terlokalisasi dengan SLAM, PC menerima target dari GUI. Costmap diperbarui dari pindaian LiDAR, lalu planner Hybrid A* shape-aware mencari lintasan. Jika lintasan tidak memenuhi syarat segmen mundur, bobot penalti gerak mundur dinaikkan dan perencanaan diulang beberapa kali sebelum navigasi dihentikan. Lintasan yang sah diikuti path follower (Regulated Pure Pursuit) sampai robot tiba di ujung lintasan, lalu posisi dan arah akhir diperiksa terhadap toleransi.
 
 ### State Machine
 
