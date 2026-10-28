@@ -107,7 +107,7 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 **Contoh: ada orang lewat di depan robot**
 
 - Yang pertama mendeteksi = Local costmap
-- Yang bereaksi = Controller lebih dulu, lalu planner membuat jalur baru
+- Yang bereaksi = Controller lebih dulu, lalu planner membuat path baru
 - Kenapa controller lebih dulu = Karena controller bekerja dengan frekuensi lebih tinggi
 - Kenapa planner juga bereaksi = Karena global costmap juga membaca data sensor, jadi orang itu ikut tercatat di global costmap
 
