@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 2
 
-**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Menggunakan ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -14,7 +14,7 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 - [CAN Bus dan SocketCAN](#can-bus-dan-socketcan)
 - [CAN-Bridge Node](#can-bridge-node)
 - [Driver LiDAR, IMU, TF Tree, dan URDF](#driver-lidar-imu-tf-tree-dan-urdf)
-- [rosbag2 dan Pengukuran Laju Topic](#rosbag2-dan-pengukuran-laju-topic)
+- [rosbag2 dan Pengukuran Rate Topic](#rosbag2-dan-pengukuran-rate-topic)
 - [Skala Encoder Fork](#skala-encoder-fork)
 - [Rencana Selanjutnya](#rencana-selanjutnya)
 - [Referensi](#referensi)
@@ -54,7 +54,7 @@ Materi minggu 1 (diskusi dengan mitra, Nav2, RViz, algoritma A*, serta arsitektu
 
 Sebelum diterapkan pada forklift, Nav2 diuji terlebih dahulu menggunakan simulasi robot TurtleBot3 Waffle bawaan Nav2 di Gazebo. Uji coba ini bertujuan memahami alur kerja Nav2: localization dengan AMCL, path planning, dan pengiriman goal melalui RViz.
 
-**Lingkungan:** Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11.
+**Software:** Ubuntu 22.04, ROS 2 Humble, Gazebo Classic 11.
 
 > **Catatan:** Quickstart Nav2 versi Rolling memakai paket `nav2_minimal_tb*` dan Gazebo baru (Harmonic). Pada ROS 2 Humble, simulasi memakai paket `turtlebot3_gazebo` dengan Gazebo Classic, sehingga langkahnya sedikit berbeda.
 
@@ -82,7 +82,7 @@ export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gaz
 ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False
 ```
 
-Perintah ini membuka Gazebo (dunia simulasi) dan RViz. Pada tahap ini **Global Status di RViz masih Error**, dan terminal menampilkan pesan `Timed out waiting for transform from base_link to map`. Hal ini normal karena AMCL belum menerima posisi awal robot, sehingga transform `map → odom` belum tersedia.
+Perintah ini membuka Gazebo (dunia simulasi) dan RViz. Pada tahap ini **Global Status di RViz masih Error**, dan terminal menampilkan pesan `Timed out waiting for transform from base_link to map`. Hal ini normal karena AMCL belum menerima initial pose robot, sehingga transform `map → odom` belum tersedia.
 
 > Jangan menutup jendela RViz. Pada launch ini, menutup RViz akan menghentikan seluruh proses.
 
@@ -91,7 +91,7 @@ Perintah ini membuka Gazebo (dunia simulasi) dan RViz. Pada tahap ini **Global S
 
 ### 3. Memberikan Initial Pose
 
-Klik **2D Pose Estimate** pada toolbar RViz, klik posisi robot pada peta, lalu tarik ke arah hadap robot. Cara lain melalui terminal:
+Klik **2D Pose Estimate** pada toolbar RViz, klik posisi robot pada peta, lalu tarik ke arah heading robot. Cara lain melalui terminal:
 
 ```bash
 ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
@@ -105,7 +105,7 @@ Setelah initial pose diterima, Global Status berubah menjadi **Ok**, dan panel N
 
 ### 4. Mengirim Goal Navigasi
 
-Klik **Nav2 Goal** pada toolbar RViz, klik titik tujuan pada peta, lalu tarik untuk menentukan arah akhir robot. Cara lain melalui terminal:
+Klik **Nav2 Goal** pada toolbar RViz, klik titik tujuan pada peta, lalu tarik untuk menentukan heading akhir robot. Cara lain melalui terminal:
 
 ```bash
 ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
@@ -121,12 +121,12 @@ Jika berhasil, terminal menampilkan `Goal finished with status: SUCCEEDED`.
 
 - Sebelum initial pose = Global Status: Error; frame `map` belum tersedia sehingga costmap global menunggu transform
 - Setelah initial pose = Global Status: Ok; Navigation dan Localization *active*; costmap, LaserScan, dan partikel AMCL tampil
-- Saat navigasi = Robot mengikuti jalur hasil planner sambil menghindari obstacle; feedback (ETA, sisa jarak, recovery) tampil di panel Navigation 2
+- Saat navigasi = Robot mengikuti path dari planner sambil menghindari obstacle; feedback (ETA, sisa jarak, recovery) tampil di panel Navigation 2
 
 ### Hasil Belajar
 
 **Kenapa Global Status di RViz Error sebelum initial pose diberikan?**
-Karena robot tidak tahu posisi aktualnya di peta. Odometry hanya tahu perpindahan robot dari titik awalnya, bukan posisinya di peta, untuk itu `amcl` membutuhkan initial pose. Setelah initial pose diberikan, `amcl` mem-publish TF `map → odom` sehingga Global Status menjadi Ok.
+Karena robot belum tahu posisinya di peta. Odometry hanya tahu perpindahan robot dari titik awal, bukan posisinya di peta, jadi `amcl` membutuhkan initial pose. Setelah initial pose diberikan, `amcl` mem-publish TF `map → odom` sehingga Global Status menjadi Ok.
 
 **Kenapa Localization *inactive* di mode SLAM, tapi robot tetap bisa bernavigasi?**
 Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasnya adalah slam_toolbox. slam_toolbox mem-publish peta (`/map`) dan TF `map → odom`, sehingga Nav2 tetap bisa bernavigasi.
@@ -143,7 +143,7 @@ Di mode SLAM, `amcl` dan `map_server` tidak jalan, jadi yang menggantikan tugasn
 
 **SLAM (*Simultaneous Localization and Mapping*)** adalah proses membangun peta lingkungan sekaligus memperkirakan posisi robot di dalam peta tersebut. Pada proyek ini, SLAM digunakan untuk membuat peta area kerja yang nantinya dipakai Nav2 untuk navigasi.
 
-Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D berbasis LiDAR yang direkomendasikan oleh Nav2. Alternatifnya adalah Cartographer.
+Package yang digunakan adalah **slam_toolbox**, yaitu SLAM 2D menggunakan LiDAR yang direkomendasikan oleh Nav2. Alternatifnya adalah Cartographer.
 
 ### Input dan Output
 
@@ -190,25 +190,25 @@ Jadi AMCL tidak bisa bekerja tanpa peta, sedangkan SLAM yang membuat peta terseb
 
 ## Algoritma Theta*
 
-Theta* adalah pengembangan A* supaya jalurnya tidak harus mengikuti arah grid (*any-angle*).
+Theta* adalah pengembangan A* supaya path-nya tidak harus mengikuti arah grid (*any-angle*).
 
 ### Masalah A* di Grid
 
-Pada grid kosong dari (0,0) ke (3,2), A* 4 arah menghasilkan jalur berbentuk tangga sepanjang 5 m. Padahal garis lurusnya hanya √(3² + 2²) ≈ 3,61 m.
+Pada grid kosong dari (0,0) ke (3,2), A* 4 arah menghasilkan path berbentuk tangga sepanjang 5 m. Padahal garis lurusnya hanya √(3² + 2²) ≈ 3,61 m.
 
 ### Line-of-Sight
 
-Setiap menemukan tetangga, Theta* mengecek apakah parent dari kotak saat ini bisa melihat langsung tetangga itu, yaitu apakah garis lurus dari tengah kotak ke tengah kotak tidak melewati tembok.
+Setiap menemukan neighbor, Theta* mengecek apakah parent dari cell saat ini bisa melihat langsung neighbor itu, yaitu apakah garis lurus dari tengah cell ke tengah cell tidak melewati tembok.
 
-- Terlihat (Path 2) = Tetangga langsung dihubungkan ke parent, kotak di tengah dilewati
-- Tidak terlihat (Path 1) = Sama seperti A*, tetangga dihubungkan ke kotak saat ini
+- Terlihat (Path 2) = Neighbor langsung dihubungkan ke parent, cell di tengah dilewati
+- Tidak terlihat (Path 1) = Sama seperti A*, neighbor dihubungkan ke cell saat ini
 
-Karena jalurnya bisa miring, biaya dihitung dengan jarak lurus (Euclidean), bukan jumlah langkah.
+Karena path-nya bisa miring, cost dihitung dengan jarak lurus (Euclidean distance), bukan jumlah langkah.
 
 ### Kelebihan dan Kekurangan
 
-- Kelebihan = Jalur lebih pendek dan belokannya lebih sedikit
-- Kekurangan = Perlu hitungan tambahan untuk cek line-of-sight, dan belum memperhitungkan radius belok kendaraan (penting untuk forklift)
+- Kelebihan = Path lebih pendek dan belokannya lebih sedikit
+- Kekurangan = Perlu hitungan tambahan untuk cek line-of-sight, dan belum memperhitungkan minimum turning radius kendaraan (penting untuk forklift)
 
 ---
 
@@ -225,15 +225,15 @@ y=1      S    .    #    .    G
 y=2      .    .    #    .    .
 ```
 
-Tetangga S (0,1):
+Neighbor S (0,1):
 
 - (1,1) = g 1, h 3, f 4
 - (0,0) = g 1, h 5, f 6
 - (0,2) = g 1, h 5, f 6
 
-A* mengembangkan (1,1) lebih dulu karena nilai `f`-nya paling kecil.
+A* meng-expand (1,1) lebih dulu karena nilai `f`-nya paling kecil.
 
-Jalur akhir: S → (1,1) → (1,0) → (2,0) → (3,0) → (3,1) atau (4,0) → G = 6 langkah.
+Path akhir: S → (1,1) → (1,0) → (2,0) → (3,0) → (3,1) atau (4,0) → G = 6 langkah.
 
 Kalau `h` selalu bernilai 0, maka `f = g`, sehingga `g` terkecil yang didahulukan. A* tidak lagi terarah ke goal dan berubah menjadi algoritma Dijkstra.
 
@@ -246,7 +246,7 @@ y=1      .    #    #    .
 y=2      .    .    .    G
 ```
 
-Format: kotak[g, h, f]
+Format: cell[g, h, f]
 
 ```
 Langkah 1: ambil S
@@ -272,21 +272,21 @@ Langkah 5: ambil (3,1)
 Langkah 6: ambil G → selesai
 ```
 
-Jalur akhir: S → (1,0) → (2,0) → (3,0) → (3,1) → G = 5 langkah.
+Path akhir: S → (1,0) → (2,0) → (3,0) → (3,1) → G = 5 langkah.
 
 (0,1) tidak pernah masuk closed list. Di langkah 2, (0,1) kalah seri karena (1,0) lebih dulu masuk open list. Di langkah berikutnya, (0,1) selalu kalah karena `h`-nya lebih besar. Saat G diambil, pencarian langsung berhenti.
 
 ### Latihan 3: Line-of-Sight
 
-Grid sama dengan Latihan 1 A* (jalur A* = 6 langkah).
+Grid sama dengan Latihan 1 A* (path A* = 6 langkah).
 
 - S (0,1) → G (4,1) = Tidak, karena terhalang tembok di (2,1)
 - S (0,1) → (2,0) = Ya, karena garis lurusnya tidak melewati tembok
 - (2,0) → G (4,1) = Ya, karena garis lurusnya tidak melewati tembok; tembok (2,1) ada di bawah garis
 
-Jalur Theta*: S → (2,0) → G
+Path Theta*: S → (2,0) → G
 
-Panjang jalur: √5 + √5 = 2√5 ≈ 4,47 m. Dibanding A* (6 m), Theta* lebih pendek 1,53 m.
+Panjang path: √5 + √5 = 2√5 ≈ 4,47 m. Dibanding A* (6 m), Theta* lebih pendek 1,53 m.
 
 ---
 
@@ -319,8 +319,8 @@ Komponen pada PCB:
 - Rangkaian limit switch = Resistor, dioda 1N4148, dan kapasitor 100nF untuk limit switch atas (PB14) dan bawah (PB15)
 - Konektor JST = Jalur encoder, limit switch, UART, dan RST_ALL
 - Tombol = Reset (SW1)
-- LED hijau = Indikator catu 3V3 (D1)
-- Terminal screw 2 pin = Jalur catu daya
+- LED hijau = Indikator power 3V3 (D1)
+- Terminal screw 2 pin = Input power supply
 
 ### Integrasi dengan Sistem Utama
 
@@ -333,7 +333,7 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 
 ### Checklist Pengujian Modul
 
-- [x] Tegangan catu 5V dan 3V3 sesuai, tidak ada hubung singkat
+- [x] Tegangan supply 5V dan 3V3 sesuai, tidak ada short circuit
 - [x] LED indikator menyala dan tombol reset bekerja
 - [x] Nilai encoder bertambah saat fork naik dan berkurang saat fork turun
 - [x] Limit switch atas (PB14) dan bawah (PB15) terbaca saat ditekan, tanpa *bouncing*
@@ -344,7 +344,7 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 
 ## CAN Bus dan SocketCAN
 
-**CAN (*Controller Area Network*)** adalah bus komunikasi dua kabel (CAN_H dan CAN_L) yang dipakai STM32 utama forklift untuk bertukar data dengan perangkat lain. Di PC onboard (Linux), CAN diakses melalui **SocketCAN**, sehingga antarmuka CAN muncul seperti antarmuka jaringan (`can0`).
+**CAN (*Controller Area Network*)** adalah bus komunikasi dua kabel (CAN_H dan CAN_L) yang dipakai STM32 utama forklift untuk bertukar data dengan perangkat lain. Di PC onboard (Linux), CAN diakses melalui **SocketCAN**, sehingga interface CAN muncul seperti network interface (`can0`).
 
 ### Struktur Frame CAN
 
@@ -356,11 +356,11 @@ Pada Rab, 07/10, modul diuji lalu dipasang di panel elektronik forklift, di atas
 ### Perintah Dasar SocketCAN
 
 ```bash
-# Antarmuka CAN asli (bitrate harus sama dengan STM32 utama)
+# Interface CAN asli (bitrate harus sama dengan STM32 utama)
 sudo ip link set can0 type can bitrate 250000
 sudo ip link set can0 up
 
-# Antarmuka CAN virtual untuk latihan tanpa hardware
+# Interface CAN virtual untuk latihan tanpa hardware
 sudo modprobe vcan
 sudo ip link add dev vcan0 type vcan
 sudo ip link set vcan0 up
@@ -375,10 +375,10 @@ cansend can0 101#E803
 ### Hasil Belajar
 
 **Kenapa pesan dengan ID lebih kecil menang saat dua node mengirim bersamaan?**
-Bit 0 bersifat *dominant* dan menimpa bit 1 (*recessive*) di bus. Saat arbitrasi, node yang mengirim bit 1 tetapi membaca bit 0 di bus akan mundur. Jadi ID yang lebih kecil (lebih banyak bit 0 di depan) mendapat prioritas.
+Bit 0 bersifat *dominant* dan menimpa bit 1 (*recessive*) di bus. Saat arbitration, node yang mengirim bit 1 tetapi membaca bit 0 di bus akan mundur. Jadi ID yang lebih kecil (lebih banyak bit 0 di depan) mendapat prioritas.
 
 **Kenapa bus CAN butuh resistor 120 Ω di kedua ujung?**
-Resistor terminasi menyamakan impedansi kabel sehingga sinyal tidak memantul di ujung bus. Tanpa terminasi, frame bisa rusak terutama pada bitrate tinggi.
+Termination resistor menyamakan impedansi kabel sehingga sinyal tidak memantul di ujung bus. Tanpa termination resistor, frame bisa rusak terutama pada bitrate tinggi.
 
 **Apa yang perlu diketahui sebelum membuat CAN-bridge node?**
 Bitrate bus, daftar ID yang dipakai STM32 utama, serta format data tiap ID (urutan byte, satuan, dan skala). Informasi ini diambil dari firmware STM32 utama dan dicek dengan `candump`.
@@ -481,7 +481,7 @@ Frame CAN hanya 8 byte. Integer 16 bit cukup untuk 0–65535 mm dan lebih mudah 
 ### Message Sensor
 
 - `sensor_msgs/msg/LaserScan` (LiDAR 2D) = `angle_min`, `angle_max`, `angle_increment`, `range_min`, `range_max`, dan array `ranges` (meter)
-- `sensor_msgs/msg/Imu` (IMU) = `orientation` (quaternion), `angular_velocity` (rad/s), `linear_acceleration` (m/s²), masing-masing dengan matriks kovarians
+- `sensor_msgs/msg/Imu` (IMU) = `orientation` (quaternion), `angular_velocity` (rad/s), `linear_acceleration` (m/s²), masing-masing dengan covariance matrix
 - `nav_msgs/msg/Odometry` (encoder motor) = Pose dan kecepatan robot terhadap frame `odom`
 
 Satuan mengikuti REP 103: meter, radian, detik.
@@ -545,9 +545,9 @@ Odometry bersifat halus dan kontinu, tetapi error-nya menumpuk (*drift*). Locali
 
 ---
 
-## rosbag2 dan Pengukuran Laju Topic
+## rosbag2 dan Pengukuran Rate Topic
 
-**rosbag2** merekam topic ROS 2 ke file sehingga data sensor dapat diputar ulang tanpa menjalankan forklift. Ini dipakai untuk metode verifikasi SP-01 (laju dan kelengkapan data sensor navigasi).
+**rosbag2** merekam topic ROS 2 ke file sehingga data sensor dapat diputar ulang tanpa menjalankan forklift. Ini dipakai untuk metode verifikasi SP-01 (rate dan kelengkapan data sensor navigasi).
 
 ```bash
 # Merekam topic sensor navigasi
@@ -559,7 +559,7 @@ ros2 bag info uji_sp01
 # Memutar ulang rekaman
 ros2 bag play uji_sp01
 
-# Mengukur laju dan bandwidth topic secara langsung
+# Mengukur rate dan bandwidth topic secara langsung
 ros2 topic hz /scan
 ros2 topic bw /scan
 ```
@@ -567,7 +567,7 @@ ros2 topic bw /scan
 ### Menghitung Kehilangan Data
 
 ```
-pesan seharusnya  = laju nominal (Hz) × durasi (s)
+pesan seharusnya  = rate nominal (Hz) × durasi (s)
 kehilangan data   = (1 − pesan diterima / pesan seharusnya) × 100%
 ```
 
@@ -594,8 +594,8 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 - Konstanta firmware = `ENCODER_MAX` = 53808 count untuk `HEIGHT_MAX_CM` = 250 cm
 - Resolusi = 250 / 53808 = 0,00465 cm per count (≈ 0,046 mm)
 - Jumlah putaran roda untuk 250 cm = 53808 / 2400 = 22,42 putaran
-- Keliling roda yang tersirat = 250 / 22,42 = 11,15 cm
-- Diameter roda yang tersirat = 11,15 / π ≈ 3,55 cm
+- Keliling roda hasil hitungan = 250 / 22,42 = 11,15 cm
+- Diameter roda hasil hitungan = 11,15 / π ≈ 3,55 cm
 
 Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
 
@@ -619,7 +619,7 @@ Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware ti
 - Contoh = 100 cm = 21523 count
 - UART = 115200 bps 8N1, frame 32 byte, header `ibe`, checksum XOR byte 0–30
 - Laju frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
-- Limit switch = Aktif rendah (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
+- Limit switch = Active low (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
 
 Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Pemasangan limit switch sudah sesuai firmware; yang perlu disesuaikan adalah label skematik, yang saat ini tertulis PB14 = LS_DOWN dan PB15 = LS_UP (seharusnya PB14 = LS_UP dan PB15 = LS_DOWN).
 
@@ -631,17 +631,17 @@ Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limi
 
 Fork sudah dikalibrasi dan diuji dengan meteran, diukur dari lantai ke permukaan atas fork, dengan fork diam di tiap titik.
 
-- Titik 0 cm = Bacaan encoder 0,0 cm, meteran 18,0 cm, residu −0,18 cm
-- Titik 20 cm = Bacaan encoder 7,9 cm, meteran 26,0 cm, residu +0,15 cm
-- Titik 50 cm = Bacaan encoder 38,3 cm, meteran 55,0 cm, residu −0,36 cm
-- Titik 100 cm = Bacaan encoder 88,6 cm, meteran 105,0 cm, residu +0,80 cm
-- Titik 150 cm = Bacaan encoder 139,3 cm, meteran 153,0 cm, residu −0,42 cm
+- Titik 0 cm = Bacaan encoder 0,0 cm, meteran 18,0 cm, selisih −0,18 cm
+- Titik 20 cm = Bacaan encoder 7,9 cm, meteran 26,0 cm, selisih +0,15 cm
+- Titik 50 cm = Bacaan encoder 38,3 cm, meteran 55,0 cm, selisih −0,36 cm
+- Titik 100 cm = Bacaan encoder 88,6 cm, meteran 105,0 cm, selisih +0,80 cm
+- Titik 150 cm = Bacaan encoder 139,3 cm, meteran 153,0 cm, selisih −0,42 cm
 
-Hasil regresi linear:
+Hasil linear regression:
 
 ```
 tinggi nyata [cm] = 0,971 × bacaan encoder [cm] + 18,2
-residu maks 0,8 cm, simpangan baku 0,45 cm
+selisih maks 0,8 cm, standard deviation 0,45 cm
 ```
 
 - Skala 0,971 = Nilai cm per count di firmware (250 / 53808) ≈ 3% terlalu besar; `ENCODER_MAX` yang sesuai ≈ 55 400 count untuk 250 cm
