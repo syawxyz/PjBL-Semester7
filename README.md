@@ -318,12 +318,12 @@ Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini dicar
 
 - Outer loop (ROS 2) = Nav2 planner (Hybrid A*) membuat path, path follower mengikuti path dan berhenti jika ada obstacle di depan, lalu command multiplexer memilih perintah (manual > docking > otonom) menjadi `/cmd_vel_agv`
 - CAN-bridge node = Mengirim `/cmd_vel_agv` (v, ω) lewat CAN sekitar 50 Hz ke STM32F407
-- STM32F407 = Kinematika differential drive mengubah (v, ω) menjadi setpoint rpm motor kiri dan kanan (gear ratio 24), dikirim ke driver lewat CAN
+- STM32F407 = Rumus differential drive mengubah (v, ω) menjadi setpoint rpm motor kiri dan kanan (gear ratio 24), dikirim ke driver lewat CAN
 - Inner loop (driver MDSM) = Driver mengatur kecepatan motor sendiri (CiA-402 Profile Velocity Mode) dengan feedback encoder motor
 - Feedback = Posisi dan rpm motor dari driver MDSM serta heading dari gyro IMU HWT901B diolah menjadi `/odom` oleh STM32F407 dan CAN-bridge node; LiDAR masuk slam_toolbox (localization) menjadi pose di peta
 - Safety = Watchdog: perintah PC timeout → stop (target SP-09: ≤ 1 s); E-stop fisik memutus power motor tanpa software (rencana; wiring belum diverifikasi)
 
-Kinematika differential drive, dengan L = jarak antar roda dan r = jari-jari roda:
+Rumus differential drive, dengan L = jarak antar roda dan r = jari-jari roda:
 
 ```
 ωR = (v + ω · L/2) / r
