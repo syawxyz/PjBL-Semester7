@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 4
 
-**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Menggunakan ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -46,14 +46,14 @@ Materi minggu sebelumnya:
 
 ## Detailed Engineering Design (DED)
 
-DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milestone M2, minggu 5). Dokumen disusun dari template departemen dengan nomor `PJBL7-K1-DED`, status DRAF. Revisi 00 (23/10/2026, 18 halaman) disusun di minggu 4; revisi 01 (26/10/2026, 19 halaman) mengganti diagram blok dan arsitektur software serta menambah flowchart operasi navigasi.
+DED adalah luaran L2 di Project Charter dan menjadi bahan review desain (milestone M2, minggu 5). Dokumen disusun dari template departemen dengan nomor `PJBL7-K1-DED`, status DRAF. Revisi 00 (23/10/2026, 18 halaman) disusun di minggu 4; revisi 01 (28/10/2026, 19 halaman) mengganti diagram blok dan arsitektur software ROS 2, melengkapi daftar modul, dan mencantumkan batas kecepatan otonom.
 
 - 01 Pendahuluan = Ringkasan proyek, tujuan dokumen, ruang lingkup desain, definisi dan singkatan
 - 02 Kebutuhan Sistem = Kebutuhan fungsional FR-01 s.d. FR-10 dan non-fungsional NFR-01 s.d. NFR-08, dipetakan ke SP-01 s.d. SP-09
 - 03 Arsitektur Sistem = Diagram blok berlapis dan deskripsi subsistem SS-01 s.d. SS-06
 - 04 Desain Hardware = Alur sinyal, BOM, daftar I/O, skematik dan wiring, power budget, tata letak panel
 - 05 Desain Software = Arsitektur software ROS 2, daftar modul, protokol CAN dan UART, struktur data
-- 06 Flowchart dan Logika Program = Flowchart program utama, flowchart kendali fork, flowchart operasi navigasi, state machine
+- 06 Flowchart dan Logika Program = Flowchart program utama, flowchart kendali fork, state machine
 - 07 Rencana Pengujian dan Verifikasi = Uji T-01 s.d. T-06
 - 08 Keselamatan dan Standar Acuan = PUIL 2011, IEC 61131-3, IEC 60529, K3 pengujian, ISO 3691-4 sebagai acuan
 - 09 Daftar Lampiran = Skematik, datasheet, kode program, gambar mekanik
@@ -108,10 +108,10 @@ Seluruh data teknis diambil dari kode firmware STM32F407, firmware modul fork ST
 
 - autofork_routine() = Kendali on/off fork dengan early cut 2,0 cm (naik) dan 3,0 cm (turun), aktif lagi jika error > 3,0 cm
 - Kinematika dan driver = Mengubah (v, ω) menjadi rpm motor kiri/kanan (gear ratio 24), dibatasi ±2950 rpm motor (≈ ±123 rpm roda), dengan stall recovery
-- Arbitrase mode dan watchdog = Memilih mode PC, JOYSTICK, atau INIT; link PC dianggap timeout setelah 1,5 s
+- Pemilihan mode dan watchdog = Memilih mode PC, JOYSTICK, atau INIT; link PC dianggap timeout setelah 1,5 s
 - CAN-bridge node = Satu-satunya node yang menggerakkan robot; mengubah /cmd_vel_agv dan /cmd_fork menjadi frame CAN, dengan watchdog perintah
-- Nav2 planner = Path planning Hybrid A* yang memperhitungkan radius belok forklift
-- Path follower = Mengikuti jalur; stop jika ada obstacle di depan forklift
+- Nav2 planner = Path planning Hybrid A* yang memperhitungkan minimum turning radius forklift
+- Path follower = Mengikuti path; stop jika ada obstacle di depan forklift
 - Command multiplexer = Memilih perintah dengan prioritas manual, lalu docking, lalu otonom
 
 Ringkasan data CAN ada di [branch week3](https://github.com/syawxyz/PjBL-Semester7/tree/week3#data-can-forklift).
@@ -124,7 +124,7 @@ Ringkasan data CAN ada di [branch week3](https://github.com/syawxyz/PjBL-Semeste
 
 ![Flowchart program utama](images/ded-flowchart-utama.png)
 
-Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware membaca joystick dan mode hasil arbitrase dari interrupt TIM6 (10 ms). Pada mode PC, forklift hanya bergerak jika motion gate terpenuhi: sudah di-arm, E-stop tidak latch, perintah jalan aktif, perintah PC belum lebih tua dari 1,5 s, dan kedua channel driver aktif. Jika salah satu syarat gagal, setpoint kecepatan dibuat nol dan pompa fork dimatikan.
+Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware membaca joystick dan mode yang dipilih di interrupt TIM6 (10 ms). Pada mode PC, forklift hanya bergerak jika motion gate terpenuhi: sudah di-arm, E-stop tidak latch, perintah jalan aktif, perintah PC belum lebih tua dari 1,5 s, dan kedua channel driver aktif. Jika salah satu syarat gagal, setpoint kecepatan dibuat nol dan pompa fork dimatikan.
 
 ### Kendali Ketinggian Fork
 
@@ -140,7 +140,7 @@ Setelah inisialisasi, firmware masuk ke loop utama. Setiap 100 ms firmware memba
 
 ![Flowchart operasi navigasi](images/flowchart-operasi-navigasi.png)
 
-Setelah peta dimuat dan robot terlokalisasi dengan SLAM, PC menerima target dari GUI. Costmap diperbarui dari pindaian LiDAR, lalu planner Hybrid A* shape-aware mencari lintasan. Jika lintasan tidak memenuhi syarat segmen mundur, bobot penalti gerak mundur dinaikkan dan perencanaan diulang beberapa kali sebelum navigasi dihentikan. Lintasan yang sah diikuti path follower (Regulated Pure Pursuit) sampai robot tiba di ujung lintasan, lalu posisi dan arah akhir diperiksa terhadap toleransi.
+Setelah peta dimuat dan localization dengan SLAM berjalan, PC menerima goal dari GUI. Costmap diperbarui dari scan LiDAR, lalu planner Hybrid A* shape-aware mencari path. Jika bagian mundur pada path terlalu panjang, penalty gerak mundur dinaikkan dan planning diulang beberapa kali; jika tetap gagal, navigasi dihentikan. Path yang valid diikuti path follower (Regulated Pure Pursuit) sampai robot tiba di ujung path, lalu posisi dan heading akhir dicek terhadap toleransi.
 
 ### State Machine
 
@@ -160,7 +160,7 @@ Setelah peta dimuat dan robot terlokalisasi dengan SLAM, PC menerima target dari
 - T-05 (SP-08, SP-09) = Uji E-stop, link terputus, kecepatan, dan 50 perintah manual lewat remote
 - T-06 (security) = Perintah gerak tanpa arming, tanpa deadman, dan setelah E-stop tidak boleh menggerakkan forklift
 
-Status saat ini: T-02 sebagian (kalibrasi minggu 2 pada 18–150 cm, residu maksimal 0,8 cm); uji lainnya belum dilakukan.
+Status saat ini: T-02 sebagian (kalibrasi minggu 2 pada 18–150 cm, selisih maksimal 0,8 cm); uji lainnya belum dilakukan.
 
 ---
 
