@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 3
 
-**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Menggunakan ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -56,7 +56,7 @@ Materi minggu sebelumnya:
 
 ## CAN Lanjutan: ros2_socketcan, Error Bus, dan Log CAN
 
-Dasar CAN, SocketCAN, dan contoh CAN-bridge node dengan python-can sudah dibahas di [minggu 2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#can-bus-dan-socketcan). Minggu ini membahas paket resmi `ros2_socketcan`, cara membaca kondisi error bus, dan cara merekam lalu memutar ulang lalu lintas CAN.
+Dasar CAN, SocketCAN, dan contoh CAN-bridge node dengan python-can sudah dibahas di [minggu 2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#can-bus-dan-socketcan). Minggu ini membahas paket resmi `ros2_socketcan`, cara membaca kondisi error bus, dan cara merekam lalu memutar ulang traffic CAN.
 
 ### Paket ros2_socketcan
 
@@ -74,7 +74,7 @@ ros2 launch ros2_socketcan socket_can_bridge.launch.xml interface:=can0
 - Field `can_msgs/msg/Frame` = `header`, `id`, `is_rtr`, `is_extended`, `is_error`, `dlc`, `data` (`uint8[8]`)
 - Parameter penting = `interface` (bawaan `can0`), `filters` (bawaan `0:0`, artinya semua ID diterima), `receiver_interval_sec` dan `sender_timeout_sec` (bawaan 0,01 s)
 
-Dengan paket ini, CAN-bridge node tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic bermakna, misalnya tinggi fork (ID dan posisi byte di bawah hanya contoh):
+Dengan paket ini, CAN-bridge node tidak perlu membuka socket sendiri. Node cukup mengubah `can_msgs/msg/Frame` menjadi topic yang siap dipakai, misalnya tinggi fork (ID dan posisi byte di bawah hanya contoh):
 
 ```python
 import struct
@@ -125,14 +125,14 @@ Di ROS 2, CAN-bridge node mem-publish `/odom` dan `/fork_height`, serta menerima
 
 ### Kondisi Error Bus
 
-Setiap node CAN menghitung error kirim dan terima di error counter. Jika jumlah error terus bertambah, node berpindah keadaan:
+Setiap node CAN mencatat error kirim (TX) dan terima (RX) di error counter. Jika error terus bertambah, status node berubah:
 
 - Error active = Normal; node boleh mengirim *error frame* aktif
-- Error passive = Error sudah banyak (error counter ≥ 128); node masih bisa berkomunikasi tetapi lebih "pasif"
-- Bus-off = Error kirim sangat banyak (TX error counter ≥ 256); node berhenti total dari bus
+- Error passive = Error sudah banyak (error counter ≥ 128); node masih bisa berkomunikasi, tetapi hanya boleh mengirim error frame pasif
+- Bus-off = Error kirim sangat banyak (TX error counter ≥ 256); node lepas total dari bus
 
 ```bash
-# Melihat keadaan dan statistik error antarmuka
+# Melihat status dan statistik error interface
 ip -details -statistics link show can0
 
 # Recovery otomatis dari bus-off setelah 100 ms
@@ -148,7 +148,7 @@ sudo ip link set can0 up
 ```bash
 candump -l can0              # simpan ke file candump-<tanggal>.log
 candump -ta can0             # tampilkan dengan timestamp absolut
-canplayer -I candump-xxx.log # putar ulang ke antarmuka asal di log
+canplayer -I candump-xxx.log # putar ulang ke interface asal di log
 ```
 
 Log CAN berguna untuk mengembangkan decoder di meja kerja tanpa menyalakan forklift. Ini mirip fungsi rosbag2, tetapi di level frame CAN.
@@ -156,13 +156,13 @@ Log CAN berguna untuk mengembangkan decoder di meja kerja tanpa menyalakan forkl
 ### Hasil Belajar
 
 **Apa bedanya node python-can minggu 2 dengan ros2_socketcan?**
-Node minggu 2 membuka bus CAN sendiri, lalu mengurai frame di node yang sama. Dengan `ros2_socketcan`, akses bus dipisah ke node resmi, sehingga decoder cukup mengolah `can_msgs/msg/Frame`. Decoder juga bisa diuji dengan rosbag yang berisi `/from_can_bus`.
+Node minggu 2 membuka bus CAN sendiri, lalu men-decode frame di node yang sama. Dengan `ros2_socketcan`, akses bus dipisah ke node resmi, sehingga decoder cukup mengolah `can_msgs/msg/Frame`. Decoder juga bisa diuji dengan rosbag yang berisi `/from_can_bus`.
 
 **Apa yang terjadi jika kabel CAN terlepas saat forklift berjalan?**
 Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah gerak dari PC berhenti datang, forklift berhenti. Saat ini batasnya 1,5 s, masih di atas target SP-09 (≤ 1 s).
 
 **Kenapa perlu `restart-ms`?**
-Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba memulihkan bus otomatis, selama driver adapternya mendukung opsi ini.
+Tanpa `restart-ms`, interface yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba recovery bus secara otomatis, selama driver adapternya mendukung opsi ini.
 
 ---
 
@@ -175,8 +175,8 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### Kenapa LiDAR Perlu IMU
 
-1. **Deskew.** Satu putaran scan butuh ± 100 ms. Selama itu robot bergerak, sehingga dinding lurus bisa tampak bengkok. IMU memberi gerakan robot di antara titik-titik scan, sehingga setiap titik dikoreksi ke posisi yang benar.
-2. **Tebakan awal.** IMU memprediksi posisi baru sehingga pencocokan scan ke peta lebih cepat dan jarang salah.
+1. **Deskew.** Satu putaran scan butuh ± 100 ms. Selama itu robot bergerak, sehingga dinding lurus bisa tampak bengkok. IMU mencatat gerakan robot selama scan berlangsung, sehingga setiap titik dikoreksi ke posisi yang benar.
+2. **Initial guess.** IMU memprediksi posisi baru, sehingga scan matching ke peta lebih cepat dan jarang salah.
 
 ### Loosely vs Tightly Coupled
 
@@ -185,9 +185,9 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### FAST-LIO (HKU MARS Lab)
 
-- Estimator = *Iterated Error-State Kalman Filter* (IESKF): IMU memprediksi, titik LiDAR mengoreksi dengan jarak titik ke bidang (*point-to-plane*), diulang beberapa kali
-- Kenapa cepat = Rumus Kalman gain dibuat agar matriks yang dibalik berukuran sebesar state, bukan sebesar jumlah titik LiDAR
-- FAST-LIO2 = Titik raw langsung dicocokkan ke peta tanpa ekstraksi fitur; peta disimpan dalam **ikd-Tree** yang bisa ditambah dan dihapus dengan cepat
+- Estimator = *Iterated Error-State Kalman Filter* (IESKF): IMU memprediksi posisi, lalu titik LiDAR mengoreksinya dengan mencocokkan titik ke permukaan di peta (*point-to-plane*); langkah ini diulang beberapa kali
+- Kenapa cepat = Rumus Kalman gain diubah sehingga beban hitungnya tergantung jumlah state, bukan jumlah titik LiDAR yang bisa ribuan
+- FAST-LIO2 = Titik raw langsung dicocokkan ke peta tanpa feature extraction; peta disimpan dalam **ikd-Tree**, struktur data yang cepat ditambah dan dihapus
 - Deskew = *Backward propagation* memakai data IMU
 
 ![Contoh hasil mapping FAST-LIO dari rosbag Livox Avia](images/fastlio-livox-avia.png)
@@ -196,10 +196,10 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### DLIO (UCLA)
 
-- Estimator = *Geometric observer* dengan jaminan konvergensi, bukan Kalman filter
-- Deskew = Gerak robot dimodelkan kontinu terhadap waktu, setiap titik dikoreksi tepat pada waktu pengambilannya
-- Pencocokan = GICP ke submap yang disusun dari beberapa *keyframe*
-- Kelebihan = Sangat ringan dan akurat, cocok untuk komputer onboard terbatas
+- Estimator = *Geometric observer*, bukan Kalman filter; secara matematis hasil estimasinya dijamin menuju nilai yang benar
+- Deskew = Gerak robot dihitung terus-menerus terhadap waktu (*continuous-time*), sehingga setiap titik dikoreksi tepat pada waktu titik itu diambil
+- Scan matching = GICP ke submap yang disusun dari beberapa *keyframe*
+- Kelebihan = Sangat ringan dan akurat, cocok untuk PC onboard dengan spesifikasi terbatas
 
 ![Contoh peta hasil DLIO](images/dlio-hasil-peta.png)
 
@@ -207,7 +207,7 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 
 ### Relevansi untuk Forklift
 
-FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya memindai satu bidang, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox untuk mapping dan localization, dengan odometry dari posisi roda + gyro IMU.
+FAST-LIO dan DLIO dirancang untuk **LiDAR 3D** (misalnya Livox atau Ouster). Forklift memakai **LiDAR 2D** yang hanya scan satu bidang horizontal, sehingga tidak ada informasi ketinggian untuk mengoreksi gerak 3D. **Keputusan: FAST-LIO dan DLIO tidak dipakai.** Navigasi tetap memakai slam_toolbox untuk mapping dan localization, dengan odometry dari posisi roda + gyro IMU.
 
 ### Hasil Belajar
 
@@ -218,29 +218,29 @@ Titik di awal dan akhir satu putaran scan diambil dari posisi robot yang berbeda
 Loosely coupled. EKF menggabungkan hasil odometry encoder dan orientasi IMU yang sudah jadi, bukan data raw LiDAR dan IMU dalam satu estimator.
 
 **Apakah FAST-LIO atau DLIO cocok untuk forklift dengan LiDAR 2D?**
-Tidak. Keduanya butuh awan titik 3D untuk mencocokkan bidang dan mengoreksi enam derajat kebebasan. LiDAR 2D hanya melihat satu irisan horizontal.
+Tidak. Keduanya butuh point cloud 3D untuk mengoreksi gerak 3D (6 DOF: x, y, z, roll, pitch, yaw). LiDAR 2D hanya melihat satu bidang horizontal.
 
 ---
 
 ## Hybrid A*
 
-A* dan Theta* (minggu 1–2) merencanakan jalur untuk titik yang bisa bergerak ke segala arah. Forklift tidak bisa begitu: forklift punya **arah hadap** dan **radius belok minimum**. Jalur A* atau Theta* bisa berisi belokan tajam yang tidak mungkin diikuti forklift. **Hybrid A\*** menyelesaikan masalah ini.
+A* dan Theta* (minggu 1–2) membuat path untuk robot yang dianggap bisa bergerak ke segala arah. Forklift tidak bisa begitu: forklift punya **heading** dan **minimum turning radius**. Path A* atau Theta* bisa berisi belokan tajam yang tidak mungkin diikuti forklift. **Hybrid A\*** menyelesaikan masalah ini.
 
 ### Ide Utama
 
-- State = (x, y, θ) kontinu, tetapi disimpan per sel grid dan per sudut terkuantisasi
-- Ekspansi = Dari setiap state, robot "menjalankan" busur dengan radius belok minimum: kiri, lurus, kanan; maju, dan juga mundur jika diizinkan
-- Biaya = Panjang jalur ditambah penalti mundur, ganti arah maju–mundur, belok, dan biaya costmap
-- Heuristik = Nilai terbesar dari (a) jarak kurva Dubins/Reeds-Shepp tanpa obstacle dan (b) jarak 2D dengan obstacle tanpa memperhatikan kinematika
-- *Analytic expansion* = Sesekali mencoba langsung menyambung ke goal dengan kurva Dubins/Reeds-Shepp; jika bebas tabrakan, pencarian selesai lebih cepat
+- State = Posisi dan heading (x, y, θ); disimpan per cell grid dan per kelompok sudut (misalnya tiap 5°)
+- Expansion = Dari setiap state, planner mencoba gerakan belok kiri, lurus, dan belok kanan dengan minimum turning radius; maju, dan juga mundur jika diizinkan
+- Cost = Panjang path ditambah penalty untuk mundur, ganti arah maju–mundur, belok, dan nilai costmap
+- Heuristic = Nilai terbesar dari (a) panjang kurva Dubins/Reeds-Shepp tanpa obstacle dan (b) jarak A* 2D yang memperhitungkan obstacle tetapi mengabaikan cara belok kendaraan
+- *Analytic expansion* = Sesekali mencoba langsung menyambung ke goal dengan kurva Dubins/Reeds-Shepp; jika tidak menabrak obstacle, pencarian selesai lebih cepat
 
-![Heuristik A* 2D yang memandu pencarian Hybrid A*](images/hybrid-astar-heuristik-2d.png)
+![Heuristic A* 2D yang memandu pencarian Hybrid A*](images/hybrid-astar-heuristik-2d.png)
 
-*Heuristik A\* 2D (dengan obstacle) memandu pencarian Hybrid A\* menjauhi jalan buntu yang tidak bisa dilewati kendaraan. Sumber: video "Two Dimensional A\* Heuristic in a Hybrid A\* Algorithm", Karl Kurzer (YouTube, tesis master KTH Royal Institute of Technology).*
+*Heuristic A\* 2D (dengan obstacle) memandu pencarian Hybrid A\* menjauhi jalan buntu yang tidak bisa dilewati kendaraan. Sumber: video "Two Dimensional A\* Heuristic in a Hybrid A\* Algorithm", Karl Kurzer (YouTube, tesis master KTH Royal Institute of Technology).*
 
 ### Dubins vs Reeds-Shepp
 
-- Dubins = Hanya maju; jalur tersusun dari busur dan garis lurus
+- Dubins = Hanya maju; path tersusun dari lengkungan dan garis lurus
 - Reeds-Shepp = Boleh maju dan mundur; lebih cocok untuk forklift yang sering mundur saat mendekati rak
 
 ### Hybrid A* di Nav2
@@ -256,43 +256,43 @@ planner_server:
       motion_model_for_search: "REEDS_SHEPP"  # atau "DUBIN" (hanya maju)
       minimum_turning_radius: 1.0             # contoh; ukur dari forklift
       reverse_penalty: 2.0                    # mundur lebih mahal dari maju
-      change_penalty: 0.0                     # penalti ganti arah maju/mundur
-      non_straight_penalty: 1.2               # penalti saat berbelok
+      change_penalty: 0.0                     # penalty ganti arah maju/mundur
+      non_straight_penalty: 1.2               # penalty saat belok
       cost_penalty: 2.0                       # menjauhi area dekat obstacle
       angle_quantization_bins: 72             # 360° / 72 = 5° per bin
       analytic_expansion_ratio: 3.5
 ```
 
-> **Catatan:** Nilai di atas adalah contoh. `minimum_turning_radius` harus diukur dari forklift, dan penalti disetel saat uji navigasi (minggu 9–12).
+> **Catatan:** Nilai di atas adalah contoh. `minimum_turning_radius` harus diukur dari forklift, dan nilai penalty di-tuning saat uji navigasi (minggu 9–12).
 
 ### Perbandingan A*, Theta*, dan Hybrid A*
 
-- A* = Mengikuti arah grid; jalur zig-zag; tidak memperhatikan kinematika
-- Theta* = Any-angle dengan line-of-sight; jalur lebih lurus dan pendek; belokan bisa tajam
-- Hybrid A* = Mengikuti radius belok dan arah hadap; jalur bisa langsung diikuti kendaraan; komputasi lebih berat
+- A* = Mengikuti arah grid; path zig-zag; tidak memperhatikan cara belok kendaraan
+- Theta* = Any-angle dengan line-of-sight; path lebih lurus dan pendek; belokan bisa tajam
+- Hybrid A* = Memperhatikan minimum turning radius dan heading; path bisa langsung diikuti kendaraan; beban hitung lebih berat
 
 ### Hasil Belajar
 
-**Kenapa jalur Theta* belum tentu bisa diikuti forklift?**
-Theta* hanya memastikan garis bebas obstacle. Sudut belok di titik sambung bisa 90° atau lebih, sedangkan forklift butuh busur dengan radius minimum.
+**Kenapa path Theta* belum tentu bisa diikuti forklift?**
+Theta* hanya memastikan garis bebas obstacle. Sudut belok di titik sambung bisa 90° atau lebih, sedangkan forklift hanya bisa belok dengan minimum turning radius tertentu.
 
 **Kapan memilih REEDS_SHEPP dibanding DUBIN?**
-Jika forklift perlu mundur, misalnya saat masuk lorong rak atau memutar di ruang sempit. DUBIN hanya maju sehingga di ruang sempit bisa gagal menemukan jalur.
+Jika forklift perlu mundur, misalnya saat masuk lorong rak atau memutar di ruang sempit. DUBIN hanya maju sehingga di ruang sempit bisa gagal menemukan path.
 
 ---
 
 ## Desain Kontrol Forklift
 
-Ada dua loop kendali: **kendali ketinggian fork** di STM32 utama, dan **kendali gerak** yang bertingkat antara ROS 2 di PC onboard dan STM32 utama.
+Ada dua control loop: **kendali ketinggian fork** di STM32 utama, dan **kendali gerak** yang bertingkat antara ROS 2 di PC onboard dan STM32 utama.
 
 ### Kendali Ketinggian Fork
 
 ![Blok diagram kendali ketinggian fork](images/kendali-fork.png)
 
-- Referensi r = Target tinggi fork dari ROS 2 (`/cmd_fork`), dikirim lewat CAN ke STM32F407
+- Setpoint r = Target tinggi fork dari ROS 2 (`/cmd_fork`), dikirim lewat CAN ke STM32F407
 - Error e = r − y
-- Kontroler = Logika on/off dengan deadband dan early cut di STM32F407
-- Sinyal kendali u = NAIK (pompa ON), TURUN (valve solenoid ON), atau DIAM
+- Controller = Logika on/off dengan deadband dan early cut di STM32F407
+- Control signal u = NAIK (pompa ON), TURUN (valve solenoid ON), atau DIAM
 - Plant = Silinder hidrolik dan fork
 - Disturbance = Overrun pompa: fork masih bergerak sebentar setelah pompa dimatikan (risiko R-03)
 - Feedback y = Tinggi fork dari encoder incremental, dihitung modul fork STM32F401, dikirim lewat UART4; STM32F407 meneruskannya ke ROS 2 lewat CAN (`/fork_height`)
@@ -310,13 +310,13 @@ jika limit switch bawah aktif      → larang TURUN, reset encoder (homing)
 jika aktuator ON tetapi y tidak berubah selama t detik → DIAM + status error
 ```
 
-Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini diidentifikasi dari uji step di minggu 6–7, lalu dibandingkan dengan target SP-04 (error ≤ 5 cm).
+Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini dicari dari uji step response di minggu 6–7, lalu dibandingkan dengan target SP-04 (error ≤ 5 cm).
 
 ### Kendali Gerak
 
 ![Blok diagram kendali gerak](images/kendali-gerak.png)
 
-- Outer loop (ROS 2) = Nav2 planner (Hybrid A*) membuat jalur, path follower mengikuti jalur dan berhenti jika ada obstacle di depan, lalu command multiplexer memilih perintah (manual > docking > otonom) menjadi `/cmd_vel_agv`
+- Outer loop (ROS 2) = Nav2 planner (Hybrid A*) membuat path, path follower mengikuti path dan berhenti jika ada obstacle di depan, lalu command multiplexer memilih perintah (manual > docking > otonom) menjadi `/cmd_vel_agv`
 - CAN-bridge node = Mengirim `/cmd_vel_agv` (v, ω) lewat CAN sekitar 50 Hz ke STM32F407
 - STM32F407 = Kinematika differential drive mengubah (v, ω) menjadi setpoint rpm motor kiri dan kanan (gear ratio 24), dikirim ke driver lewat CAN
 - Inner loop (driver MDSM) = Driver mengatur kecepatan motor sendiri (CiA-402 Profile Velocity Mode) dengan feedback encoder motor
@@ -338,7 +338,7 @@ Kinematika differential drive, dengan L = jarak antar roda dan r = jari-jari rod
 Pompa hidrolik hanya bisa ON atau OFF (tidak bisa diatur kecepatannya), dan sistem hidrolik utama tidak boleh dimodifikasi (di luar lingkup). Karena itu kendali dibuat on/off dengan deadband dan early cut untuk mengatasi overrun.
 
 **Kenapa kendali gerak dibuat bertingkat?**
-Inner loop (kecepatan roda) butuh respons cepat dan berjalan di driver MDSM. Outer loop (mengikuti jalur dan menghindari obstacle) butuh peta dan sensor LiDAR, sehingga berjalan di ROS 2. Pemisahan ini juga membuat forklift tetap aman jika PC berhenti, karena watchdog di STM32F407 menghentikan motor.
+Inner loop (kecepatan roda) butuh respons cepat dan berjalan di driver MDSM. Outer loop (mengikuti path dan menghindari obstacle) butuh peta dan sensor LiDAR, sehingga berjalan di ROS 2. Pemisahan ini juga membuat forklift tetap aman jika PC berhenti, karena watchdog di STM32F407 menghentikan motor.
 
 ---
 
