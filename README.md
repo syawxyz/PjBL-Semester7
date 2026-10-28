@@ -618,7 +618,7 @@ Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware ti
 - Resolusi tinggi = 0,00465 cm per count (≈ 0,046 mm)
 - Contoh = 100 cm = 21523 count
 - UART = 115200 bps 8N1, frame 32 byte, header `ibe`, checksum XOR byte 0–30
-- Laju frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
+- Rate frame data = ±360 frame/s, dikirim terus-menerus (2,78 ms per frame)
 - Limit switch = Active low (0 = tertekan): `limit_sw[0]` = PB14 = batas atas, `limit_sw[1]` = PB15 = batas bawah
 
 Acuan pin mengikuti firmware yang berlaku: PB14 = limit switch atas, PB15 = limit switch bawah (acuan nol). Pemasangan limit switch sudah sesuai firmware; yang perlu disesuaikan adalah label skematik, yang saat ini tertulis PB14 = LS_DOWN dan PB15 = LS_UP (seharusnya PB14 = LS_UP dan PB15 = LS_DOWN).
