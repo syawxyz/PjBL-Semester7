@@ -190,12 +190,20 @@ Tanpa `restart-ms`, antarmuka yang sudah bus-off tetap mati sampai di-*restart* 
 - FAST-LIO2 = Titik raw langsung dicocokkan ke peta tanpa ekstraksi fitur; peta disimpan dalam **ikd-Tree** yang bisa ditambah dan dihapus dengan cepat
 - Deskew = *Backward propagation* memakai data IMU
 
+![Contoh hasil mapping FAST-LIO dari rosbag Livox Avia](images/fastlio-livox-avia.png)
+
+*Sumber: README [FAST-LIO](https://github.com/hku-mars/FAST_LIO) (HKU MARS Lab), bagian Rosbag Example – Livox Avia.*
+
 ### DLIO (UCLA)
 
 - Estimator = *Geometric observer* dengan jaminan konvergensi, bukan Kalman filter
 - Deskew = Gerak robot dimodelkan kontinu terhadap waktu, setiap titik dikoreksi tepat pada waktu pengambilannya
 - Pencocokan = GICP ke submap yang disusun dari beberapa *keyframe*
 - Kelebihan = Sangat ringan dan akurat, cocok untuk komputer onboard terbatas
+
+![Contoh peta hasil DLIO](images/dlio-hasil-peta.png)
+
+*Sumber: README [Direct LiDAR-Inertial Odometry (DLIO)](https://github.com/vectr-ucla/direct_lidar_inertial_odometry) (VECTR, UCLA), lisensi MIT.*
 
 ### Relevansi untuk Forklift
 
