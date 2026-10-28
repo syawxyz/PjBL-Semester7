@@ -1,6 +1,6 @@
 # PjBL Semester 7 — Week 1
 
-**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Berbasis ROS 2**
+**Pengembangan Sistem Navigasi Otonom dan Kendali Ketinggian Fork pada AMR Forklift Menggunakan ROS 2**
 Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Daftar Isi
@@ -18,14 +18,14 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 
 ## Hasil Diskusi Proyek dengan PT Integrasi Bisnis Eksekutif
 
-Terdapat forklift elektrik (pallet stacker) yang telah dikerjakan pada semester sebelumnya. Forklift ini dapat dikendalikan menggunakan remote nirkabel, tetapi belum mampu beroperasi secara otonom.
+Mitra memiliki forklift elektrik (pallet stacker) yang sudah dikembangkan pada semester sebelumnya. Forklift ini bisa dikendalikan dengan remote wireless, tetapi belum bisa berjalan otonom.
 
 ### Kondisi Saat Ini
 
 - Kontroler = STM32
 - Komunikasi = CAN bus
 - Sensor = LiDAR 2D, IMU, encoder motor
-- Mode kendali = Manual melalui remote nirkabel
+- Mode kendali = Manual melalui remote wireless
 - Fork hidrolik = Naik/turun manual, belum ada sensor ketinggian fork
 
 ### Permasalahan
@@ -37,7 +37,7 @@ Kondisi tersebut membatasi penerapan forklift untuk proses *material handling* y
 
 ### Lingkup Pengembangan
 
-1. Sistem navigasi otonom berbasis ROS 2 (SLAM + Nav2).
+1. Sistem navigasi otonom menggunakan ROS 2 (SLAM + Nav2).
 2. Instrumentasi dan kendali ketinggian fork.
 
 ### Dokumentasi
@@ -84,32 +84,32 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 
 - `map_server` = Memuat peta (`.yaml` + `.pgm`)
 - `amcl` = Localization robot pada peta menggunakan LiDAR (*particle filter*)
-- `planner_server` = Membuat jalur global dari posisi robot ke tujuan
-- `controller_server` = Mengikuti jalur dan menghasilkan perintah kecepatan `/cmd_vel`
-- Costmap 2D (global & local) = Peta cost berisi area bebas dan obstacle
-- `behavior_server` = Perilaku *recovery*: spin, backup, wait
+- `planner_server` = Membuat global path dari posisi robot ke goal
+- `controller_server` = Mengikuti path dan menghasilkan velocity command (`/cmd_vel`)
+- Costmap 2D (global & local) = Peta berisi nilai cost: area bebas dan obstacle
+- `behavior_server` = Behavior *recovery*: spin, backup, wait
 - `bt_navigator` = Mengatur alur navigasi menggunakan *Behavior Tree*
-- `velocity_smoother` = Menghaluskan perintah kecepatan sebelum dikirim ke motor
+- `velocity_smoother` = Menghaluskan velocity command sebelum dikirim ke motor
 - `lifecycle_manager` = Mengelola start/stop seluruh node Nav2
 
 ### Hasil Belajar
 
 **Apa beda tugas planner dan controller?**
 
-- Planner = Bertugas menghitung path yang aman berdasarkan peta costmap global
-- Controller = Menghasilkan perintah kecepatan (`/cmd_vel`) yang akan dieksekusi oleh hardware, dengan tujuan dan jalur yang sudah ditentukan oleh planner
+- Planner = Menghitung path yang aman berdasarkan global costmap
+- Controller = Menghasilkan velocity command (`/cmd_vel`) untuk dijalankan hardware, mengikuti path dari planner
 
-**Apa beda costmap global dan costmap lokal?**
+**Apa beda global costmap dan local costmap?**
 
-- Costmap global = Mempunyai peta keseluruhan, dibangun dari peta hasil SLAM dan data sensor, digunakan oleh planner
-- Costmap lokal = Bertugas membaca lingkungan sekitar robot secara aktual dari data sensor saat itu, digunakan oleh controller untuk antisipasi
+- Global costmap = Berisi seluruh peta, dibangun dari peta hasil SLAM dan data sensor; dipakai planner
+- Local costmap = Berisi area di sekitar robot dari data sensor saat itu; dipakai controller untuk menghindari obstacle yang baru muncul
 
 **Contoh: ada orang lewat di depan robot**
 
-- Yang pertama mendeteksi = Costmap lokal
+- Yang pertama mendeteksi = Local costmap
 - Yang bereaksi = Controller lebih dulu, lalu planner membuat jalur baru
-- Kenapa controller lebih dulu = Karena frekuensi kerja controller lebih cepat
-- Kenapa planner juga bereaksi = Karena costmap global juga membaca data sensor, jadi orang itu ikut tercatat di costmap global
+- Kenapa controller lebih dulu = Karena controller bekerja dengan frekuensi lebih tinggi
+- Kenapa planner juga bereaksi = Karena global costmap juga membaca data sensor, jadi orang itu ikut tercatat di global costmap
 
 ### Menjalankan Nav2
 
@@ -124,7 +124,7 @@ ros2 launch nav2_bringup bringup_launch.py \
 
 ## RViz
 
-**RViz2** adalah tool visualisasi 3D pada ROS 2 untuk menampilkan data sensor, TF tree, peta, dan jalur navigasi robot. RViz hanya menampilkan data, bukan simulator. Tool ini dipakai untuk memantau proses SLAM dan Nav2 serta melakukan debugging.
+**RViz2** adalah tool visualisasi 3D pada ROS 2 untuk menampilkan data sensor, TF tree, peta, dan path navigasi robot. RViz hanya menampilkan data, bukan simulator. Tool ini dipakai untuk memantau proses SLAM dan Nav2 serta melakukan debugging.
 
 ### Display yang Digunakan
 
@@ -133,13 +133,13 @@ ros2 launch nav2_bringup bringup_launch.py \
 - TF = Memeriksa TF tree (`map`, `odom`, `base_link`, `laser`)
 - RobotModel (`/robot_description`) = Menampilkan model forklift dari URDF
 - Odometry (`/odom`) = Memeriksa hasil odometry
-- Path (`/plan`) = Menampilkan jalur global dari Nav2
+- Path (`/plan`) = Menampilkan global path dari Nav2
 - Map costmap (`/global_costmap/costmap`, `/local_costmap/costmap`) = Menampilkan costmap Nav2
 
 ### Tool Interaktif
 
-- **2D Pose Estimate**: memberikan posisi awal robot ke AMCL (topic `/initialpose`).
-- **Nav2 Goal**: mengirim posisi tujuan navigasi ke Nav2.
+- **2D Pose Estimate**: memberikan initial pose robot ke AMCL (topic `/initialpose`).
+- **Nav2 Goal**: mengirim goal navigasi ke Nav2.
 
 ### Menjalankan RViz
 
@@ -158,7 +158,7 @@ rviz2 -d config/forklift.rviz
 
 ## Algoritma A*
 
-A* adalah algoritma pencarian jalur terpendek pada grid. Berbeda dengan Dijkstra yang menjelajah ke segala arah secara merata, A* mendahulukan arah yang kelihatannya menuju goal.
+A* adalah algoritma untuk mencari path terpendek pada grid. Dijkstra mencari ke segala arah secara merata, sedangkan A* mendahulukan cell yang paling mengarah ke goal.
 
 ### Rumus
 
@@ -166,24 +166,24 @@ A* adalah algoritma pencarian jalur terpendek pada grid. Berbeda dengan Dijkstra
 f = g + h
 ```
 
-- `g` = Biaya yang sudah ditempuh dari start ke kotak ini
-- `h` = Perkiraan biaya dari kotak ini ke goal (heuristik)
-- `f` = Perkiraan total biaya jika lewat kotak ini
+- `g` = Cost yang sudah ditempuh dari start ke cell ini
+- `h` = Perkiraan cost dari cell ini ke goal (heuristic)
+- `f` = Perkiraan total cost jika lewat cell ini
 
-Untuk grid 4 arah (atas, bawah, kiri, kanan), `h` dihitung dengan jarak Manhattan ke goal: `h = |selisih x| + |selisih y|`.
+Untuk grid 4 arah (atas, bawah, kiri, kanan), `h` dihitung dengan Manhattan distance ke goal: `h = |selisih x| + |selisih y|`.
 
 ### Open List dan Closed List
 
-- Open list = Kotak yang sudah ditemukan tapi belum dikembangkan; isinya menumpuk
-- Closed list = Kotak yang sudah dikembangkan; tidak diperiksa lagi
+- Open list = Cell yang sudah ditemukan tetapi belum di-expand
+- Closed list = Cell yang sudah di-expand; tidak diperiksa lagi
 
-Setiap langkah, A* mengambil kotak dengan `f` terkecil dari open list, memindahkannya ke closed list, lalu memasukkan tetangga barunya ke open list. Pencarian berhenti saat G diambil dari open list.
+Setiap langkah, A* mengambil cell dengan `f` terkecil dari open list, memindahkannya ke closed list, lalu memasukkan neighbor barunya ke open list. Pencarian berhenti saat goal diambil dari open list.
 
 ---
 
 ## Modul Sensor Ketinggian Fork
 
-Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan mikrokontroler STM32F401CCU6.
+Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan microcontroller STM32F401CCU6.
 
 ### Arsitektur Sistem
 
@@ -197,15 +197,15 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 ### Skematik
 
-- Catu daya = Input 24V (konektor XT30), diturunkan ke 5V dengan modul DC-DC (U2)
-- Mikrokontroler = STM32F401CCU6 Black Pill (U1)
-- Encoder = ENC_A (PA8) dan ENC_B (PA9) melalui konektor J5, dengan catu 5V
+- Power supply = Input 24V (konektor XT30), diturunkan ke 5V dengan modul DC-DC (U2)
+- Microcontroller = STM32F401CCU6 Black Pill (U1)
+- Encoder = ENC_A (PA8) dan ENC_B (PA9) melalui konektor J5, dengan supply 5V
 - Limit switch = LS_DOWN (PB14) dan LS_UP (PB15), masing-masing dengan pull-up 10k, resistor 1k, dioda 1N4148, dan kapasitor 100nF
-
-> **Catatan minggu 2:** label limit switch pada skematik ini tertukar terhadap firmware yang berlaku (firmware: PB14 = batas atas, PB15 = batas bawah). Pemasangan mengikuti firmware; label skematik akan disesuaikan. Lihat [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#rantai-konversi-pulsa-ke-ketinggian).
 - Komunikasi = UART TX (PA2) dan RX (PA3) melalui konektor J4
 - Reset = Tombol SW1 ke pin NRST STM32; jalur RST_ALL (PA1) keluar melalui konektor J6
 - Indikator = LED D1 pada jalur 3V3
+
+> **Catatan minggu 2:** label limit switch pada skematik ini tertukar terhadap firmware yang berlaku (firmware: PB14 = batas atas, PB15 = batas bawah). Pemasangan mengikuti firmware; label skematik akan disesuaikan. Lihat [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2#rantai-konversi-pulsa-ke-ketinggian).
 
 ![Skematik modul sensor fork](images/fork-skematik.png)
 
