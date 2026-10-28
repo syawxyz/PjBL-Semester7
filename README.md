@@ -234,6 +234,10 @@ A* dan Theta* (minggu 1–2) merencanakan jalur untuk titik yang bisa bergerak k
 - Heuristik = Nilai terbesar dari (a) jarak kurva Dubins/Reeds-Shepp tanpa obstacle dan (b) jarak 2D dengan obstacle tanpa memperhatikan kinematika
 - *Analytic expansion* = Sesekali mencoba langsung menyambung ke goal dengan kurva Dubins/Reeds-Shepp; jika bebas tabrakan, pencarian selesai lebih cepat
 
+![Heuristik A* 2D yang memandu pencarian Hybrid A*](images/hybrid-astar-heuristik-2d.png)
+
+*Heuristik A\* 2D (dengan obstacle) memandu pencarian Hybrid A\* menjauhi jalan buntu yang tidak bisa dilewati kendaraan. Sumber: video "Two Dimensional A\* Heuristic in a Hybrid A\* Algorithm", Karl Kurzer (YouTube, tesis master KTH Royal Institute of Technology).*
+
 ### Dubins vs Reeds-Shepp
 
 - Dubins = Hanya maju; jalur tersusun dari busur dan garis lurus
