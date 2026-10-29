@@ -26,7 +26,7 @@ Mitra memiliki forklift elektrik (pallet stacker) yang sudah dikembangkan pada s
 - Komunikasi = CAN bus
 - Sensor = LiDAR 2D, IMU, encoder motor
 - Mode kendali = Manual melalui remote wireless
-- Fork hidrolik = Naik/turun manual, belum ada sensor ketinggian fork
+- Fork hidrolik = Naik dan turun manual, belum ada sensor ketinggian fork
 
 ### Permasalahan
 
@@ -37,7 +37,7 @@ Kondisi tersebut membatasi penerapan forklift untuk proses *material handling* y
 
 ### Lingkup Pengembangan
 
-1. Sistem navigasi otonom menggunakan ROS 2 (SLAM + Nav2).
+1. Sistem navigasi otonom menggunakan ROS 2 (SLAM dan Nav2).
 2. Instrumentasi dan kendali ketinggian fork.
 
 ### Dokumentasi
@@ -61,16 +61,16 @@ Kondisi tersebut membatasi penerapan forklift untuk proses *material handling* y
 
 Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 
-- Sen, 28/09 = Diskusi masalah dengan mitra di industri (2 jam); menyusun Project Charter (6 jam)
-- Sel, 29/09 = Mempelajari Nav2 (4 jam); mempelajari RViz (3 jam)
-- Rab, 30/09 = Membuat arsitektur sistem hardware pembaca ketinggian fork (4 jam); membuat skematik PCB (3 jam)
-- Kam, 01/10 = Routing PCB (4 jam); mempersiapkan firmware pembaca ketinggian fork (3 jam)
-- Jum, 02/10 = Mempelajari algoritma A* (8 jam)
+- Sen, 28/09 = Diskusi masalah dengan mitra di industri (2 jam, 08.00 s/d 10.00); menyusun Project Charter (6 jam, 10.00 s/d 16.00)
+- Sel, 29/09 = Mempelajari Nav2 (4 jam, 08.00 s/d 12.00); mempelajari RViz (3 jam, 13.00 s/d 16.00)
+- Rab, 30/09 = Membuat arsitektur sistem untuk hardware pembaca ketinggian fork (4 jam, 08.00 s/d 12.00); membuat skematik PCB (3 jam, 13.00 s/d 16.00)
+- Kam, 01/10 = Routing PCB (4 jam, 08.00 s/d 12.00); mempersiapkan firmware untuk pembaca ketinggian fork (3 jam, 13.00 s/d 16.00)
+- Jum, 02/10 = Mempelajari algoritma A* (8 jam, 08.00 s/d 16.00)
 - Total = 37 jam
 
 **Target minggu ini:** merancang Project Charter serta mempelajari Nav2, SLAM, algoritma A*, Theta*, dan merancang arsitektur sistem untuk sensor ketinggian fork.
 
-**Kendala:** belum mempelajari SLAM dan algoritma Theta*.
+**Kendala:** SLAM dan algoritma Theta* belum dipelajari.
 
 **Capaian target:** Sebagian.
 
@@ -90,7 +90,7 @@ Periode 28/09/2026 s.d. 02/10/2026, sesuai logbook individu DTEO ITS.
 - `behavior_server` = Behavior *recovery*: spin, backup, wait
 - `bt_navigator` = Mengatur alur navigasi menggunakan *Behavior Tree*
 - `velocity_smoother` = Menghaluskan velocity command sebelum dikirim ke motor
-- `lifecycle_manager` = Mengelola start/stop seluruh node Nav2
+- `lifecycle_manager` = Mengelola start dan stop seluruh node Nav2
 
 ### Hasil Belajar
 
@@ -236,7 +236,7 @@ Modul ini membaca ketinggian fork menggunakan encoder dan 2 limit switch, dengan
 
 - Pembuatan PCB fork dan test firmware
 - Mempelajari SLAM dan algoritma Theta* (materinya ada di [branch week2](https://github.com/syawxyz/PjBL-Semester7/tree/week2))
-- Integrasi firmware MCU fork ke sistem utama dengan komunikasi UART
+- Integrasi firmware MCU fork ke sistem utama lewat UART
 
 ---
 
