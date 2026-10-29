@@ -25,24 +25,24 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 
 Periode 04/10/2026 s.d. 09/10/2026, sesuai logbook individu DTEO ITS.
 
-- Min, 04/10 = Simulasi Nav2 TurtleBot3 di Gazebo (4 jam); membuat peta dengan slam_toolbox di simulasi (3 jam); latihan A* dan Theta* (2 jam)
-- Sel, 06/10 = Assembly PCB encoder fork (8 jam)
-- Rab, 07/10 = Integrasi PCB encoder fork dengan sistem utama (8 jam)
-- Kam, 08/10 = Mempelajari CAN bus dan SocketCAN (4 jam); mempelajari node ROS 2 dan menyusun contoh CAN-bridge node (3 jam)
-- Jum, 09/10 = Mempelajari driver LiDAR dan IMU, TF tree, dan URDF (4 jam); mempelajari rosbag2 dan menghitung skala encoder fork (3 jam)
+- Min, 04/10 = Simulasi Nav2 TurtleBot3 di Gazebo: initial pose dan goal navigasi (4 jam, 08.00 s/d 12.00); membuat peta dengan slam_toolbox di simulasi (3 jam, 13.00 s/d 16.00); latihan A* dan Theta*: g, h, f, open list dan closed list, line-of-sight (2 jam, 19.00 s/d 21.00)
+- Sel, 06/10 = Assembly PCB encoder fork (8 jam, 08.00 s/d 16.00)
+- Rab, 07/10 = Integrasi PCB encoder fork dengan sistem utama (8 jam, 08.00 s/d 16.00)
+- Kam, 08/10 = Mempelajari CAN bus dan SocketCAN: struktur frame, bitrate, candump dan cansend, python-can (4 jam, 08.00 s/d 12.00); mempelajari node ROS 2 (rclpy) dan menyusun contoh CAN-bridge node ke topic ROS 2 (3 jam, 13.00 s/d 16.00)
+- Jum, 09/10 = Mempelajari driver LiDAR 2D dan IMU di ROS 2, TF tree, dan URDF forklift (4 jam, 08.00 s/d 12.00); mempelajari rosbag2 dan ros2 topic hz, menghitung skala encoder fork (3 jam, 13.00 s/d 16.00)
 - Total = 39 jam
 
-**Target minggu ini:** (1) Project Charter disahkan (M1); (2) PCB encoder fork dirakit, diuji, dan terintegrasi ke sistem utama; (3) memahami simulasi Nav2/SLAM serta dasar CAN–ROS 2 sebagai persiapan perancangan minggu 3.
+**Target minggu ini:** (1) Project Charter disahkan (M1); (2) PCB encoder fork dirakit, diuji, dan terintegrasi ke sistem utama; (3) memahami simulasi Nav2 dan SLAM serta dasar CAN dan ROS 2 sebagai persiapan perancangan minggu 3.
 
 **Kendala dan solusi:**
 
-1. Skala firmware meleset ≈ 3% (faktor 0,971) dan titik nol encoder berada 18,2 cm di atas lantai. Solusi: koreksi linear di sisi PC (tinggi = 0,971 × bacaan encoder + 18,2 cm); konstanta firmware tetap.
+1. Skala firmware meleset sekitar 3% (faktor 0,971) dan titik nol encoder berada 18,2 cm di atas lantai. Solusi: koreksi linear di sisi PC (tinggi = 0,971 × bacaan encoder + 18,2 cm); konstanta firmware tetap.
 2. Label limit switch di skematik tertukar terhadap firmware (firmware: PB14 = batas atas, PB15 = batas bawah). Solusi: perbaiki label skematik; pemasangan sudah sesuai firmware.
 3. Minggu 2 difokuskan pada PCB fork sehingga charter belum diajukan untuk pengesahan (M1). Solusi: ajukan charter revisi ke dosen pembimbing di minggu 3.
 
-Catatan: perakitan, pengujian, dan kalibrasi modul fork dikerjakan lebih awal dari jadwal charter (minggu 3–7).
+Catatan: perakitan, pengujian, dan kalibrasi modul fork dikerjakan lebih awal dari jadwal charter (minggu 3 sampai 7).
 
-**Capaian target:** Sebagian — target (2) dan (3) tercapai; (1) belum, charter diajukan di minggu 3.
+**Capaian target:** Sebagian: target (2) dan (3) tercapai; (1) belum, charter diajukan di minggu 3.
 
 Materi hari Minggu ada di bagian [Uji Coba Simulasi Nav2](#uji-coba-simulasi-nav2), [SLAM](#slam), [Algoritma Theta*](#algoritma-theta), dan [Latihan A* dan Theta*](#latihan-a-dan-theta).
 
@@ -597,7 +597,7 @@ jarak per count   = π × D / 2400     (D = diameter roda pengukur)
 - Keliling roda hasil hitungan = 250 / 22,42 = 11,15 cm
 - Diameter roda hasil hitungan = 11,15 / π ≈ 3,55 cm
 
-Hasil kalibrasi menunjukkan skala firmware meleset ≈ 3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
+Hasil kalibrasi menunjukkan skala firmware meleset sekitar 3%. Konstanta firmware tidak diubah; koreksi dilakukan di sisi PC (lihat [Hasil Kalibrasi dan Uji](#hasil-kalibrasi-dan-uji)).
 
 ### Pemasangan Encoder dan Limit Switch
 
@@ -656,9 +656,9 @@ selisih maks 0,8 cm, standard deviation 0,45 cm
 Minggu 3, sesuai rencana di logbook minggu 2:
 
 - Pengajuan charter untuk pengesahan (M1)
-- Pengembangan driver CAN–ROS 2, driver LiDAR, IMU, dan encoder motor
+- Pengembangan driver CAN ke ROS 2, driver LiDAR, IMU, dan encoder motor
 - Perekaman rosbag data sensor navigasi
-- Mulai penyusunan Detailed Engineering Design (DED) (minggu 3–5)
+- Mulai penyusunan Detailed Engineering Design (DED) (minggu 3 sampai 5)
 - Kalibrasi fork titik 200 cm dan putaran turun
 - Penyesuaian label limit switch di skematik
 
