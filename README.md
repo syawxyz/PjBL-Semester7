@@ -20,32 +20,22 @@ Mitra industri: PT Integrasi Bisnis Eksekutif
 
 Periode 12/10/2026 s.d. 16/10/2026 (tahap Perancangan), sesuai logbook individu DTEO ITS.
 
-- Sen, 12/10 = Tidak ada kegiatan proyek
-- Sel, 13/10 = Mempelajari CAN bus dan bridge CAN–ROS 2: `ros2_socketcan`, penanganan error bus, log CAN (5 jam)
-- Rab, 14/10 = Mempelajari navigasi: FAST-LIO, DLIO, dan Hybrid A* (5 jam)
-- Kam, 15/10 = Merancang kontrol forklift: blok diagram kendali ketinggian fork dan kendali gerak (5 jam)
-- Jum, 16/10 = Menyusun draf DED bagian 01–03: pendahuluan, kebutuhan sistem, arsitektur sistem (5 jam)
+- Sel, 13/10 = Mempelajari CAN bus dan bridge CAN ke ROS 2: SocketCAN, candump, `ros2_socketcan` (5 jam, 08.00 s/d 13.00)
+- Rab, 14/10 = Mempelajari navigasi: DLIO, FAST-LIO, dan Hybrid A* (5 jam, 09.00 s/d 14.00)
+- Kam, 15/10 = Merancang kontrol forklift: blok diagram kendali ketinggian fork dan kendali gerak (5 jam, 10.00 s/d 15.00)
+- Jum, 16/10 = Menyusun draf DED bagian 01 sampai 03: Pendahuluan, Kebutuhan Sistem, Arsitektur Sistem (5 jam, 08.00 s/d 13.00)
 - Total = 20 jam
 
-**Target minggu ini:** (1) memahami bridge CAN–ROS 2 serta navigasi FAST-LIO, DLIO, dan Hybrid A*; (2) blok diagram kontrol forklift (kendali ketinggian fork dan kendali gerak) selesai; (3) draf DED bagian 01–03 tersusun.
+**Target minggu ini:** (1) memahami bridge CAN ke ROS 2 serta navigasi DLIO, FAST-LIO, dan Hybrid A*; (2) blok diagram kontrol forklift (kendali ketinggian fork dan kendali gerak) selesai; (3) draf DED bagian 01 sampai 03 tersusun.
 
 **Kendala dan solusi:**
 
 1. Format pesan CAN STM32 utama belum diketahui, sehingga decoder `ros2_socketcan` masih memakai ID contoh. Solusi: peta ID dan format data diambil dari firmware STM32F407 forklift milik mitra; ringkasannya ada di [Data CAN Forklift](#data-can-forklift).
-2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox (mapping dan localization) dengan odometry roda + gyro IMU.
-3. Kendali kecepatan per roda semula diasumsikan berupa PI di STM32 utama. Solusi: driver motor MDSM (CiA-402, Profile Velocity Mode) sudah mengatur kecepatan sendiri, sehingga STM32F407 cukup mengirim setpoint kecepatan (rpm) tiap roda; blok diagram kendali gerak dan arsitektur sistem diperbarui.
-4. Nilai deadband dan overrun pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6–7.
+2. FAST-LIO dan DLIO membutuhkan LiDAR 3D, sedangkan forklift memakai LiDAR 2D. Solusi: FAST-LIO dan DLIO tidak dipakai; navigasi tetap memakai slam_toolbox (mapping dan localization) dengan odometry roda dan gyro IMU.
+3. Kendali kecepatan per roda semula diasumsikan berupa PI di STM32 utama. Solusi: driver motor MDSM (CiA-402, Profile Velocity Mode) sudah mengatur kecepatan sendiri, sehingga STM32F407 cukup mengirim setpoint kecepatan (rpm) tiap roda; blok diagram kendali gerak diperbarui.
+4. Nilai deadband dan overrun pompa hidrolik untuk kendali fork belum diketahui. Solusi: identifikasi dari uji step fork di minggu 6 dan 7.
 
-**Capaian target:** Tercapai — target (1), (2), dan (3) tercapai.
-
-**Progres kumulatif:**
-
-- Minggu 1 = 4,2% (2 dari 3 target)
-- Minggu 2 = 8,3% (2 dari 3 target)
-- Minggu 3 = 14,6% (3 dari 3 target)
-- Rencana linear sampai minggu 3 = 18,75%
-
-Cara hitung: tiap minggu bernilai 100% / 16 = 6,25%, dikali bagian target mingguan yang tercapai. Selisih terhadap rencana terutama karena charter (M1) belum disahkan.
+**Capaian target:** Tercapai: target (1), (2), dan (3) tercapai.
 
 Materi minggu sebelumnya:
 
@@ -159,7 +149,7 @@ Log CAN berguna untuk mengembangkan decoder di meja kerja tanpa menyalakan forkl
 Node minggu 2 membuka bus CAN sendiri, lalu men-decode frame di node yang sama. Dengan `ros2_socketcan`, akses bus dipisah ke node resmi, sehingga decoder cukup mengolah `can_msgs/msg/Frame`. Decoder juga bisa diuji dengan rosbag yang berisi `/from_can_bus`.
 
 **Apa yang terjadi jika kabel CAN terlepas saat forklift berjalan?**
-Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah gerak dari PC berhenti datang, forklift berhenti. Saat ini batasnya 1,5 s, masih di atas target SP-09 (≤ 1 s).
+Pengiriman gagal terus sehingga node bisa masuk error passive lalu bus-off. Karena itu STM32 utama punya watchdog: jika perintah gerak dari PC berhenti datang, forklift berhenti. Saat ini batasnya 1,5 s, masih di atas target SP-09 (paling lama 1 s).
 
 **Kenapa perlu `restart-ms`?**
 Tanpa `restart-ms`, interface yang sudah bus-off tetap mati sampai di-*restart* manual. Dengan `restart-ms 100`, kernel mencoba recovery bus secara otomatis, selama driver adapternya mendukung opsi ini.
@@ -224,7 +214,7 @@ Tidak. Keduanya butuh point cloud 3D untuk mengoreksi gerak 3D (6 DOF: x, y, z, 
 
 ## Hybrid A*
 
-A* dan Theta* (minggu 1–2) membuat path untuk robot yang dianggap bisa bergerak ke segala arah. Forklift tidak bisa begitu: forklift punya **heading** dan **minimum turning radius**. Path A* atau Theta* bisa berisi belokan tajam yang tidak mungkin diikuti forklift. **Hybrid A\*** menyelesaikan masalah ini.
+A* dan Theta* (minggu 1 dan 2) membuat path untuk robot yang dianggap bisa bergerak ke segala arah. Forklift tidak bisa begitu: forklift punya **heading** dan **minimum turning radius**. Path A* atau Theta* bisa berisi belokan tajam yang tidak mungkin diikuti forklift. **Hybrid A\*** menyelesaikan masalah ini.
 
 ### Ide Utama
 
@@ -263,7 +253,7 @@ planner_server:
       analytic_expansion_ratio: 3.5
 ```
 
-> **Catatan:** Nilai di atas adalah contoh. `minimum_turning_radius` harus diukur dari forklift, dan nilai penalty di-tuning saat uji navigasi (minggu 9–12).
+> **Catatan:** Nilai di atas adalah contoh. `minimum_turning_radius` harus diukur dari forklift, dan nilai penalty di-tuning saat uji navigasi (minggu 9 sampai 12).
 
 ### Perbandingan A*, Theta*, dan Hybrid A*
 
@@ -310,7 +300,7 @@ jika limit switch bawah aktif      → larang TURUN, reset encoder (homing)
 jika aktuator ON tetapi y tidak berubah selama t detik → DIAM + status error
 ```
 
-Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini dicari dari uji step response di minggu 6–7, lalu dibandingkan dengan target SP-04 (error ≤ 5 cm).
+Nilai deadband, overrun naik, dan overrun turun belum diketahui. Nilai ini dicari dari uji step response di minggu 6 dan 7, lalu dibandingkan dengan target SP-04 (error ≤ 5 cm).
 
 ### Kendali Gerak
 
@@ -348,18 +338,18 @@ Inner loop (kecepatan roda) butuh respons cepat dan berjalan di driver MDSM. Out
 
 Arsitektur disusun berlapis mengikuti template DED:
 
-- Field = LiDAR 2D, encoder fork, 2 limit switch, joystick (ESP32), pompa dan valve fork, E-stop fisik, encoder motor, motor traksi kiri/kanan
+- Field = LiDAR 2D, encoder fork, 2 limit switch, joystick (ESP32), pompa dan valve fork, E-stop fisik, encoder motor, motor traksi kiri dan kanan
 - Control = Bus CAN 250 kbps berisi STM32F407 utama (mode, watchdog, interlock, kendali fork, odometry), driver motor MDSM (CiA-402), dan IMU HWT901B; modul fork STM32F401 terhubung ke STM32F407 lewat UART4; joystick lewat UART
 - Edge = PC onboard dengan ROS 2 Humble: driver LiDAR, slam_toolbox, Nav2, task manager, MQTT (rencana), CAN-bridge node (adapter USB-CAN)
 - Supervisory = Halaman monitoring lewat MQTT (Wi-Fi, rencana)
 
-Draf DED bagian 01–03 disusun dari template departemen (`PJBL7-K1-DED`, revisi 00, status DRAF):
+Draf DED bagian 01 sampai 03 disusun dari template departemen (`PJBL7-K1-DED`, revisi 00, status DRAF):
 
 - 01 Pendahuluan = Ringkasan proyek, tujuan dokumen, ruang lingkup desain, definisi dan singkatan
-- 02 Kebutuhan Sistem = Kebutuhan fungsional FR-01 s.d. FR-10 dan non-fungsional NFR-01 s.d. NFR-08, dipetakan ke SP-01 s.d. SP-09
-- 03 Arsitektur Sistem = Diagram blok di atas dan deskripsi subsistem SS-01 s.d. SS-06
+- 02 Kebutuhan Sistem = Kebutuhan fungsional FR-01 sampai FR-10 dan non-fungsional NFR-01 sampai NFR-08, dipetakan ke SP-01 sampai SP-09
+- 03 Arsitektur Sistem = Diagram blok di atas dan deskripsi subsistem SS-01 sampai SS-06
 
-Bagian 04–10 (desain hardware, software, flowchart, rencana uji, keselamatan, lampiran, review) disusun minggu 4–5 untuk review desain M2.
+Bagian 04 sampai 10 (desain hardware, software, flowchart, rencana uji, keselamatan, lampiran, review) disusun minggu 4 dan 5 untuk review desain M2.
 
 ---
 
@@ -371,7 +361,7 @@ Minggu 4, sesuai rencana di logbook minggu 3:
 - Driver LiDAR: `/scan` tampil di RViz
 - Kalibrasi fork titik 200 cm dan putaran turun
 - Perbaikan label limit switch di skematik
-- Lanjutan DED bagian 04–06
+- Lanjutan DED bagian 04 sampai 06
 - Pengajuan charter (M1) jika belum disahkan
 
 ---
